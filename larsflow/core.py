@@ -25,7 +25,7 @@ class NormalizingFlow(nf.NormalizingFlow):
         z = z0.detach()
         for flow in self.flows:
             z, log_det_part = flow(z)
-            log_det += log_det_part
+            log_det = log_det + log_det_part
         log_p = self.p.log_prob(z)
         log_p_ = log_p.detach()
         log_det_ = log_det.detach()
