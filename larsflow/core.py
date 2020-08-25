@@ -36,3 +36,49 @@ class NormalizingFlow(nf.NormalizingFlow):
         grad_f = -(torch.mean(log_p) + torch.mean(log_det))
         rkld = torch.mean(log_q_) - torch.mean(log_p_) - torch.mean(log_det_)
         return rkld + grad_a - grad_a.detach() + beta * (grad_f - grad_f.detach())
+
+
+class Glow(nf.MultiscaleFlow):
+    """
+    Glow model with multiscale architecture, see arXiv:1807.03039
+    """
+    def __init__(self, config):
+        """
+        Constructor
+        :param config: Config dictionary, to be created from yaml file
+        """
+        # Get parameters
+        L = config['levels']
+        K = config['blocks']
+
+        input_shape = config['input_shape']
+        channels = input_shape[0]
+        hidden_channels = config['hidden_channels']
+        split_mode = config['split_mode']
+        scale = config['scale']
+        num_classes = 10
+
+        # Set up flows, distributions and merge operations
+        q0 = []
+        merges = []
+        flows = []
+        for i in range(L):
+            flows_ = []
+            for j in range(K):
+                flows_ += [nf.flows.GlowBlock(channels * 2 ** (L + 1 - i), hidden_channels,
+                                              split_mode=split_mode, scale=scale)]
+            flows_ += [nf.flows.Squeeze()]
+            flows += [flows_]
+            latent_shape = (input_shape[0] * 2 ** (L - i), input_shape[1] // 2 ** (L - i),
+                            input_shape[2] // 2 ** (L - i))
+            if i > 0:
+                merges += [nf.flows.Merge()]
+                latent_shape = (input_shape[0] * 2 ** (L - i), input_shape[1] // 2 ** (L - i),
+                                input_shape[2] // 2 ** (L - i))
+            else:
+                latent_shape = (input_shape[0] * 2 ** (L + 1), input_shape[1] // 2 ** L,
+                                input_shape[2] // 2 ** L)
+            q0 += [nf.distributions.ClassCondDiagGaussian(latent_shape, num_classes)]
+
+        # Construct flow model
+        model = super().__init__(q0, flows, merges)
