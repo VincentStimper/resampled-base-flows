@@ -24,7 +24,8 @@ parser = argparse.ArgumentParser(description='Train Glow model on image dataset.
 parser.add_argument('--config', type=str, default='config/glow.yaml',
                     help='Path config file specifying model architecture and training procedure')
 parser.add_argument('--resume', action='store_true', help='Flag whether to resume training')
-parser.add_argument('--gpu', action='store_true', help='Flag whether to use gpu is available')
+parser.add_argument('--cpu', action='store_true',
+                    help='Flag whether to use cpu even if gpu is available')
 parser.add_argument('--tlimit', type=float, default=None,
                     help='Number of hours after which to stop training')
 
@@ -36,7 +37,7 @@ config = utils.get_config(args.config)
 
 
 # Get computing device
-device = torch.device('cuda' if args.gpu and torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda' if not args.cpu and torch.cuda.is_available() else 'cpu')
 
 
 # Prepare training data
