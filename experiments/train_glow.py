@@ -77,7 +77,7 @@ else:
 
 
 # Create model
-model = Glow(config)
+model = Glow(config['model'])
 
 # Move model on GPU if available
 model = model.to(device)
