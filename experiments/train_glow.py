@@ -132,7 +132,7 @@ if args.resume:
 
 
 # Train model
-for it in range(max_iter):
+for it in range(start_iter, max_iter):
     try:
         x, y = next(train_iter)
     except StopIteration:
