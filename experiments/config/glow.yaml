@@ -1,7 +1,12 @@
 # Config file specifying the setup and the training procedure
 # of the Glow model
 
-dataset: cifar10        # Dataset to train on, can be cifar10
+dataset:
+  name: cifar10         # Dataset to train on, can be cifar10
+  path: dataset         # Path to dataset
+  transform:
+    type: logit
+    param: 0.05
 
 model:
   levels: 3             # Number of levels of the multiscale architecture
@@ -12,4 +17,6 @@ model:
   class_cond: True      # Flag whether model shall be class conditional
 
 training:
-  max_iter: 1000
+  max_iter: 1000        # Maximum number of iterations
+  batch_size: 128       # Batch size for training and evalutation while training
+  use_gpu: True         # Flag whether to use gpu if available
