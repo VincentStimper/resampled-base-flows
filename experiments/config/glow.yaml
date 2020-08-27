@@ -2,21 +2,26 @@
 # of the Glow model
 
 dataset:
-  name: cifar10         # Dataset to train on, can be cifar10
-  path: dataset         # Path to dataset
+  name: cifar10           # Dataset to train on, can be cifar10
+  path: dataset           # Path to dataset
   transform:
     type: logit
     param: 0.05
 
 model:
-  levels: 3             # Number of levels of the multiscale architecture
-  blocks: 16            # Number of flow blocks per level
-  hidden_channels: 256  # Number of hidden channels in the ConvNet of the coupling layers
-  scale: True           # Flag whether to include scale parameter in coupling layers
-  split_mode: channel   # Method to split features in coupling layers
-  class_cond: True      # Flag whether model shall be class conditional
+  levels: 3               # Number of levels of the multiscale architecture
+  blocks: 16              # Number of flow blocks per level
+  hidden_channels: 256    # Number of hidden channels in the ConvNet of the coupling layers
+  scale: True             # Flag whether to include scale parameter in coupling layers
+  split_mode: channel     # Method to split features in coupling layers
+  class_cond: True        # Flag whether model shall be class conditional
 
 training:
-  max_iter: 1000        # Maximum number of iterations
-  batch_size: 128       # Batch size for training and evalutation while training
-  use_gpu: True         # Flag whether to use gpu if available
+  max_iter: 1000          # Maximum number of iterations
+  batch_size: 128         # Batch size for training and evalutation while training
+  lr: 1e-3                # Learning rate
+  weight_decay: 1e-5      # Weight decay parameter
+  cp_iter: 100            # Number of iterations at which to save a checkpoint and samples
+  num_samples: 10         # Number of samples to generate and save per checkpoint
+  log_iter: 50            # Number of iterations at which to save loss and bits per dim to file
+  save_root: ./           # Path where to save checkpoints, loss, and samples
