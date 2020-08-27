@@ -196,6 +196,8 @@ for it in range(max_iter):
             x_ = torch.clamp(x.cpu(), 0, 1)
             img = np.transpose(tv.utils.make_grid(x_, nrow=nrow).numpy(), (1, 2, 0))
             plt.imsave(os.path.join(sam_dir, 'samples_%07i.png' % (it + 1)), img)
+            del(x, y, x_)
+            torch.cuda.empty_cache()
 
     if args.tlimit is not None and (time() - start_time) / 3600 > args.tlimit:
         break
