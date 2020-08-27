@@ -116,8 +116,7 @@ test_iter = iter(test_loader)
 # Resume training if needed
 start_iter = 0
 if args.resume:
-    latest_cp = utils.get_latest_checkpoint(os.path.join(cp_dir, 'checkpoints'),
-                                            'model')
+    latest_cp = utils.get_latest_checkpoint(cp_dir, 'model')
     if latest_cp is not None:
         model.load(latest_cp)
         optimizer_path = os.path.join(cp_dir, 'optimizer.pt')
@@ -173,9 +172,9 @@ for it in range(max_iter):
         bpd_append = np.array([[it + 1, np.nanmean(bpd_train), np.nanstd(bpd_train),
                                 np.nanmean(bpd_test), np.nanstd(bpd_test)]])
         bpd_hist = np.concatenate([bpd_hist, bpd_append])
-        np.savetxt(os.path.join(cp_dir, 'bits_per_dim.csv'), bpd_hist, delimiter=',',
+        np.savetxt(os.path.join(log_dir, 'bits_per_dim.csv'), bpd_hist, delimiter=',',
                    header='it,train_mean,train_std,test_mean,test_std', comments='')
-        np.savetxt(os.path.join(cp_dir, 'loss.csv'), loss_hist, delimiter=',',
+        np.savetxt(os.path.join(log_dir, 'loss.csv'), loss_hist, delimiter=',',
                    header='it,loss', comments='')
 
     if (it + 1) % cp_iter == 0:
