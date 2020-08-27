@@ -150,7 +150,7 @@ for it in range(max_iter):
     loss_hist = np.concatenate([loss_hist, loss_append])
     del (x, y, loss)
 
-    if (it + 1) % log_iter:
+    if (it + 1) % log_iter == 0:
         with torch.no_grad():
             try:
                 x, y = next(train_iter)
@@ -178,7 +178,7 @@ for it in range(max_iter):
         np.savetxt(os.path.join(cp_dir, 'loss.csv'), loss_hist, delimiter=',',
                    header='it,loss', comments='')
 
-    if (it + 1) % cp_iter:
+    if (it + 1) % cp_iter == 0:
         # Save checkpoint
         model.save(os.path.join(cp_dir, 'model_%07i.pt' % (it + 1)))
         torch.save(optimizer.state_dict(), os.path.join(cp_dir, 'optimizer.pt'))
