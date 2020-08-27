@@ -126,8 +126,8 @@ if args.resume:
         if os.path.exists(loss_path):
             loss_hist = np.loadtxt(loss_path, delimiter=',', skiprows=1)
         bpd_path = os.path.join(log_dir, 'bits_per_dim.csv')
-        if os.path.exists(loss_path):
-            bpd_hist = np.loadtxt(loss_path, delimiter=',', skiprows=1)
+        if os.path.exists(bpd_path):
+            bpd_hist = np.loadtxt(bpd_path, delimiter=',', skiprows=1)
         start_iter = int(latest_cp[-10:-3])
 
 
