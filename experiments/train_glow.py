@@ -46,6 +46,7 @@ class_cond = config['model']['class_cond']
 
 # Load dataset
 if config['dataset']['name'] == 'cifar10':
+    config['model']['input_shape'] = (3, 32, 32)
     if class_cond:
         num_classes = 10
         config['model']['num_classes'] = 10
