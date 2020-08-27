@@ -40,6 +40,11 @@ config = utils.get_config(args.config)
 device = torch.device('cuda' if not args.cpu and torch.cuda.is_available() else 'cpu')
 
 
+# Set seed if needed
+if 'seed' in config['training'] and config['training']['seed'] is not None:
+    torch.manual_seed(config['training']['seed'])
+
+
 # Prepare training data
 batch_size = config['training']['batch_size']
 class_cond = config['model']['class_cond']
