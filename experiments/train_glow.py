@@ -110,6 +110,27 @@ optimizer = torch.optim.Adam(model.parameters(), lr=config['training']['lr'],
 train_iter = iter(train_loader)
 test_iter = iter(test_loader)
 
+
+# Resume training if needed
+start_iter = 0
+if args.resume:
+    latest_cp = utils.get_latest_checkpoint(os.path.join(cp_dir, 'checkpoints'),
+                                            'model')
+    if latest_cp is not None:
+        model.load(latest_cp)
+        optimizer_path = os.path.join(cp_dir, 'optimizer.pt')
+        if os.path.exists(optimizer_path):
+            optimizer.load_state_dict(torch.load(optimizer_path))
+        loss_path = os.path.join(log_dir, 'loss.csv')
+        if os.path.exists(loss_path):
+            loss_hist = np.loadtxt(loss_path, delimiter=',', skiprows=1)
+        bpd_path = os.path.join(log_dir, 'bits_per_dim.csv')
+        if os.path.exists(loss_path):
+            bpd_hist = np.loadtxt(loss_path, delimiter=',', skiprows=1)
+        start_iter = int(latest_cp[-10:-3])
+
+
+# Train model
 for it in range(max_iter):
     try:
         x, y = next(train_iter)
