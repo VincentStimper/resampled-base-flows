@@ -56,7 +56,9 @@ class Glow(nf.MultiscaleFlow):
         hidden_channels = config['hidden_channels']
         split_mode = config['split_mode']
         scale = config['scale']
-        num_classes = 10
+        class_cond = config['class_cond']
+        if class_cond:
+            num_classes = config['num_classes']
 
         # Set up flows, distributions and merge operations
         q0 = []
@@ -81,4 +83,4 @@ class Glow(nf.MultiscaleFlow):
             q0 += [nf.distributions.ClassCondDiagGaussian(latent_shape, num_classes)]
 
         # Construct flow model
-        model = super().__init__(q0, flows, merges)
+        super().__init__(q0, flows, merges)
