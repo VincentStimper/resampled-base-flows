@@ -6,8 +6,8 @@ import normflow as nf
 
 from matplotlib import pyplot as plt
 
-from . import utils
-from . import Glow
+from larsflow import utils
+from larsflow import Glow
 
 import os
 import argparse
