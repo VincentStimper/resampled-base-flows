@@ -124,16 +124,18 @@ if args.resume:
     latest_cp = utils.get_latest_checkpoint(cp_dir, 'model')
     if latest_cp is not None:
         model.load(latest_cp)
+        start_iter = int(latest_cp[-10:-3])
         optimizer_path = os.path.join(cp_dir, 'optimizer.pt')
         if os.path.exists(optimizer_path):
             optimizer.load_state_dict(torch.load(optimizer_path))
         loss_path = os.path.join(log_dir, 'loss.csv')
         if os.path.exists(loss_path):
             loss_hist = np.loadtxt(loss_path, delimiter=',', skiprows=1)
+            loss_hist = loss_hist[loss_hist[:, 0] <= start_iter, :]
         bpd_path = os.path.join(log_dir, 'bits_per_dim.csv')
         if os.path.exists(bpd_path):
             bpd_hist = np.loadtxt(bpd_path, delimiter=',', skiprows=1)
-        start_iter = int(latest_cp[-10:-3])
+            bpd_hist = bpd_hist[bpd_hist[:, 0] <= start_iter, :]
 
 
 # Train model
