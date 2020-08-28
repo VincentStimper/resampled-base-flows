@@ -206,5 +206,8 @@ for it in range(start_iter, max_iter):
             del(x, y, x_)
             torch.cuda.empty_cache()
 
-    if args.tlimit is not None and (time() - start_time) / 3600 > args.tlimit:
-        break
+        if args.tlimit is not None:
+            time_past = (time() - start_time) / 3600
+            num_cp = (it + 1 - start_iter) / cp_iter
+            if time_past * (1 + 1 / num_cp) > args.tlimit:
+                break
