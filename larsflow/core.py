@@ -71,8 +71,6 @@ class Glow(nf.MultiscaleFlow):
                                               split_mode=split_mode, scale=scale)]
             flows_ += [nf.flows.Squeeze()]
             flows += [flows_]
-            latent_shape = (input_shape[0] * 2 ** (L - i), input_shape[1] // 2 ** (L - i),
-                            input_shape[2] // 2 ** (L - i))
             if i > 0:
                 merges += [nf.flows.Merge()]
                 latent_shape = (input_shape[0] * 2 ** (L - i), input_shape[1] // 2 ** (L - i),
