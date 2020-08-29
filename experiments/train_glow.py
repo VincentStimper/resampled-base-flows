@@ -24,10 +24,8 @@ parser = argparse.ArgumentParser(description='Train Glow model on image dataset.
 parser.add_argument('--config', type=str, default='config/glow.yaml',
                     help='Path config file specifying model architecture and training procedure')
 parser.add_argument('--resume', action='store_true', help='Flag whether to resume training')
-parser.add_argument('--cpu', action='store_true',
-                    help='Flag whether to use cpu even if gpu is available')
-parser.add_argument('--multigpu', action='store_true',
-                    help='Flag whether to use multiple gpus if available')
+parser.add_argument('--mode', type=str, default='mgpu',
+                    help='Compute mode, can be cpu, gpu, or mgpu for multiple gpu')
 parser.add_argument('--tlimit', type=float, default=None,
                     help='Number of hours after which to stop training')
 
@@ -39,7 +37,8 @@ config = utils.get_config(args.config)
 
 
 # Get computing device
-device = torch.device('cuda:0' if not args.cpu and torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda' if not args.mode == 'cpu' and
+                                torch.cuda.is_available() else 'cpu')
 
 
 # Set seed if needed
@@ -94,14 +93,20 @@ model = Glow(config['model'])
 model = model.to(device)
 model = model.double()
 
-if args.multigpu:
+if args.mode == 'mgpu' and torch.cuda.device_count() > 1:
     # Initialize ActNorm Layers
     with torch.no_grad():
+        nsplit = batch_size // torch.cuda.device_count()
+        if nsplit == 0:
+            nsplit = 1
         x, y = next(train_iter)
-        _ = model(x, y.to(device) if class_cond else None)
+        _ = model(x[:nsplit, ...], y[:nsplit, ...].to(device) if class_cond else None)
         del(x, y)
     model = torch.nn.DataParallel(model)
     model = model.to(device)
+    data_parallel = True
+else:
+    data_parallel = False
 
 
 # Prepare folders for results
@@ -133,7 +138,7 @@ start_iter = 0
 if args.resume:
     latest_cp = utils.get_latest_checkpoint(cp_dir, 'model')
     if latest_cp is not None:
-        if args.multigpu:
+        if data_parallel:
             model.module.load(latest_cp)
         else:
             model.load(latest_cp)
@@ -201,7 +206,7 @@ for it in range(start_iter, max_iter):
 
     if (it + 1) % cp_iter == 0:
         # Save checkpoint
-        if args.multigpu:
+        if data_parallel:
             model.module.save(os.path.join(cp_dir, 'model_%07i.pt' % (it + 1)))
         else:
             model.save(os.path.join(cp_dir, 'model_%07i.pt' % (it + 1)))
@@ -215,7 +220,7 @@ for it in range(start_iter, max_iter):
             else:
                 y = None
                 nrow = 8
-            if args.multigpu:
+            if data_parallel:
                 x, _ = model.module.sample(num_samples, y=y)
             else:
                 x, _ = model.sample(num_samples, y=y)
