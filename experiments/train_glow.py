@@ -133,7 +133,10 @@ start_iter = 0
 if args.resume:
     latest_cp = utils.get_latest_checkpoint(cp_dir, 'model')
     if latest_cp is not None:
-        model.load(latest_cp)
+        if args.multigpu:
+            model.module.load(latest_cp)
+        else:
+            model.load(latest_cp)
         start_iter = int(latest_cp[-10:-3])
         optimizer_path = os.path.join(cp_dir, 'optimizer.pt')
         if os.path.exists(optimizer_path):
@@ -175,7 +178,7 @@ for it in range(start_iter, max_iter):
                 train_iter = iter(train_loader)
                 x, y = next(train_iter)
             b = utils.bitsPerDim(model, x, y.to(device) if class_cond else None,
-                                    trans=bpd_trans, trans_param=bpd_param)
+                                 trans=bpd_trans, trans_param=bpd_param)
             bpd_train = b.to('cpu').numpy()
             try:
                 x, y = next(test_iter)
@@ -183,7 +186,7 @@ for it in range(start_iter, max_iter):
                 test_iter = iter(test_loader)
                 x, y = next(test_iter)
             b = utils.bitsPerDim(model, x, y.to(device) if class_cond else None,
-                                    trans=bpd_trans, trans_param=bpd_param)
+                                 trans=bpd_trans, trans_param=bpd_param)
             bpd_test = b.to('cpu').numpy()
             del(x, y, b)
             if not args.cpu:
@@ -198,7 +201,10 @@ for it in range(start_iter, max_iter):
 
     if (it + 1) % cp_iter == 0:
         # Save checkpoint
-        model.save(os.path.join(cp_dir, 'model_%07i.pt' % (it + 1)))
+        if args.multigpu:
+            model.module.save(os.path.join(cp_dir, 'model_%07i.pt' % (it + 1)))
+        else:
+            model.save(os.path.join(cp_dir, 'model_%07i.pt' % (it + 1)))
         torch.save(optimizer.state_dict(), os.path.join(cp_dir, 'optimizer.pt'))
 
         # Generate samples
