@@ -101,6 +101,7 @@ if args.multigpu:
         _ = model(x, y.to(device) if class_cond else None)
         del(x, y)
     model = torch.nn.DataParallel(model)
+    model = model.to(device)
 
 
 # Prepare folders for results
