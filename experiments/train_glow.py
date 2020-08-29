@@ -37,8 +37,8 @@ config = utils.get_config(args.config)
 
 
 # Get computing device
-use_gpu = not args.mode == 'cpu'
-device = torch.device('cuda' if use_gpu and torch.cuda.is_available() else 'cpu')
+use_gpu = not args.mode == 'cpu' and torch.cuda.is_available()
+device = torch.device('cuda' if use_gpu else 'cpu')
 
 
 # Set seed if needed
@@ -93,7 +93,7 @@ model = Glow(config['model'])
 model = model.to(device)
 model = model.double()
 
-if args.mode == 'mgpu' and torch.cuda.device_count() > 1:
+if use_gpu and args.mode == 'mgpu' and torch.cuda.device_count() > 1:
     # Initialize ActNorm Layers
     with torch.no_grad():
         nsplit = batch_size // torch.cuda.device_count()
