@@ -163,7 +163,7 @@ for it in range(start_iter, max_iter):
 
     loss_append = np.array([[it + 1, loss.detach().to('cpu').numpy()]])
     loss_hist = np.concatenate([loss_hist, loss_append])
-    del (x, y, loss)
+    del (x, y, loss, nll)
     if not args.cpu:
         torch.cuda.empty_cache()
 
