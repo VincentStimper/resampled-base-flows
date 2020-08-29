@@ -39,7 +39,7 @@ config = utils.get_config(args.config)
 
 
 # Get computing device
-device = torch.device('cuda' if not args.cpu and torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:0' if not args.cpu and torch.cuda.is_available() else 'cpu')
 
 
 # Set seed if needed
