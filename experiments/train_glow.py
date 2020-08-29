@@ -164,6 +164,8 @@ for it in range(start_iter, max_iter):
     loss_append = np.array([[it + 1, loss.detach().to('cpu').numpy()]])
     loss_hist = np.concatenate([loss_hist, loss_append])
     del (x, y, loss)
+    if not args.cpu:
+        torch.cuda.empty_cache()
 
     if (it + 1) % log_iter == 0:
         with torch.no_grad():
@@ -184,7 +186,8 @@ for it in range(start_iter, max_iter):
                                     trans=bpd_trans, trans_param=bpd_param)
             bpd_test = b.to('cpu').numpy()
             del(x, y, b)
-            torch.cuda.empty_cache()
+            if not args.cpu:
+                torch.cuda.empty_cache()
         bpd_append = np.array([[it + 1, np.nanmean(bpd_train), np.nanstd(bpd_train),
                                 np.nanmean(bpd_test), np.nanstd(bpd_test)]])
         bpd_hist = np.concatenate([bpd_hist, bpd_append])
@@ -213,7 +216,8 @@ for it in range(start_iter, max_iter):
             img = np.transpose(tv.utils.make_grid(x_, nrow=nrow).numpy(), (1, 2, 0))
             plt.imsave(os.path.join(sam_dir, 'samples_%07i.png' % (it + 1)), img)
             del(x, y, x_)
-            torch.cuda.empty_cache()
+            if not args.cpu:
+                torch.cuda.empty_cache()
 
         if args.tlimit is not None:
             time_past = (time() - start_time) / 3600
