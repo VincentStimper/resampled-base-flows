@@ -174,7 +174,7 @@ for it in range(start_iter, max_iter):
             except StopIteration:
                 train_iter = iter(train_loader)
                 x, y = next(train_iter)
-            b = nf.utils.bitsPerDim(model, x, y.to(device) if class_cond else None,
+            b = utils.bitsPerDim(model, x, y.to(device) if class_cond else None,
                                     trans=bpd_trans, trans_param=bpd_param)
             bpd_train = b.to('cpu').numpy()
             try:
@@ -182,7 +182,7 @@ for it in range(start_iter, max_iter):
             except StopIteration:
                 test_iter = iter(test_loader)
                 x, y = next(test_iter)
-            b = nf.utils.bitsPerDim(model, x, y.to(device) if class_cond else None,
+            b = utils.bitsPerDim(model, x, y.to(device) if class_cond else None,
                                     trans=bpd_trans, trans_param=bpd_param)
             bpd_test = b.to('cpu').numpy()
             del(x, y, b)
@@ -209,7 +209,10 @@ for it in range(start_iter, max_iter):
             else:
                 y = None
                 nrow = 8
-            x, _ = model.sample(num_samples, y=y)
+            if args.multigpu:
+                x, _ = model.module.sample(num_samples, y=y)
+            else:
+                x, _ = model.sample(num_samples, y=y)
             if config['dataset']['transform']['type'] == 'logit':
                 x = logit.inverse(x)
             x_ = torch.clamp(x.cpu(), 0, 1)
