@@ -82,3 +82,12 @@ class Glow(nf.MultiscaleFlow):
 
         # Construct flow model
         super().__init__(q0, flows, merges)
+
+    def forward(self, x, y=None):
+        """
+        Forward pass for data parallel computation
+        :param x: Input batch
+        :param y: Labels of input batch
+        :return: Negative log-likelihood of batch
+        """
+        self.log_prob(x, y)
