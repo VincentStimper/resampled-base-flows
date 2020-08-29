@@ -125,6 +125,12 @@ max_iter = config['training']['max_iter']
 cp_iter = config['training']['cp_iter']
 log_iter = config['training']['log_iter']
 num_samples = config['training']['num_samples']
+sample_temperature = [1.0]
+if 'sample_temperature' in config['training']:
+    if hasattr(config['training']['sample_temperature'], '__iter__'):
+        sample_temperature += list(config['training']['sample_temperature'])
+    else:
+        sample_temperature += [config['training']['sample_temperature']]
 
 loss_hist = np.zeros((0, 2))
 bpd_hist = np.zeros((0, 5))
@@ -214,24 +220,25 @@ for it in range(start_iter, max_iter):
 
         # Generate samples
         with torch.no_grad():
-            if class_cond:
-                y = torch.arange(num_classes).repeat(num_samples).to(device)
-                nrow = num_classes
-            else:
-                y = None
-                nrow = 8
-            if data_parallel:
-                x, _ = model.module.sample(num_samples, y=y)
-            else:
-                x, _ = model.sample(num_samples, y=y)
-            if config['dataset']['transform']['type'] == 'logit':
-                x = logit.inverse(x)
-            x_ = torch.clamp(x.cpu(), 0, 1)
-            img = np.transpose(tv.utils.make_grid(x_, nrow=nrow).numpy(), (1, 2, 0))
-            plt.imsave(os.path.join(sam_dir, 'samples_%07i.png' % (it + 1)), img)
-            del(x, y, x_)
-            if use_gpu:
-                torch.cuda.empty_cache()
+            for st in sample_temperature:
+                if class_cond:
+                    y = torch.arange(num_classes).repeat(num_samples).to(device)
+                    nrow = num_classes
+                else:
+                    y = None
+                    nrow = 8
+                if data_parallel:
+                    x, _ = model.module.sample(num_samples, y=y, temperature=st)
+                else:
+                    x, _ = model.sample(num_samples, y=y, temperature=st)
+                if config['dataset']['transform']['type'] == 'logit':
+                    x = logit.inverse(x)
+                x_ = torch.clamp(x.cpu(), 0, 1)
+                img = np.transpose(tv.utils.make_grid(x_, nrow=nrow).numpy(), (1, 2, 0))
+                plt.imsave(os.path.join(sam_dir, 'samples_T_%.2f_%07i.png' % (st, it + 1)), img)
+                del(x, y, x_)
+                if use_gpu:
+                    torch.cuda.empty_cache()
 
         if args.tlimit is not None:
             time_past = (time() - start_time) / 3600
