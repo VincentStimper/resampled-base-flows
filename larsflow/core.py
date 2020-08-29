@@ -90,4 +90,4 @@ class Glow(nf.MultiscaleFlow):
         :param y: Labels of input batch
         :return: Negative log-likelihood of batch
         """
-        self.log_prob(x, y)
+        return -self.log_prob(x, y)
