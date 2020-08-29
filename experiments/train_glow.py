@@ -26,6 +26,8 @@ parser.add_argument('--config', type=str, default='config/glow.yaml',
 parser.add_argument('--resume', action='store_true', help='Flag whether to resume training')
 parser.add_argument('--cpu', action='store_true',
                     help='Flag whether to use cpu even if gpu is available')
+parser.add_argument('--multigpu', action='store_true',
+                    help='Flag whether to use multiple gpus if available')
 parser.add_argument('--tlimit', type=float, default=None,
                     help='Number of hours after which to stop training')
 
@@ -81,6 +83,9 @@ else:
     raise NotImplementedError('The dataset ' + config['dataset']['name']
                               + 'is not implemented.')
 
+train_iter = iter(train_loader)
+test_iter = iter(test_loader)
+
 
 # Create model
 model = Glow(config['model'])
@@ -88,6 +93,13 @@ model = Glow(config['model'])
 # Move model on GPU if available
 model = model.to(device)
 model = model.double()
+
+if args.multigpu:
+    # Initialize ActNorm Layers
+    with torch.no_grad():
+        x, y = next(train_iter)
+        _ = model(x, y.to(device) if class_cond else None)
+    model = torch.nn.DataParallel(model)
 
 
 # Prepare folders for results
@@ -101,7 +113,6 @@ for dir in [cp_dir, sam_dir, log_dir]:
         os.mkdir(dir)
 
 
-
 # Prepare training utilities
 max_iter = config['training']['max_iter']
 cp_iter = config['training']['cp_iter']
@@ -113,9 +124,6 @@ bpd_hist = np.zeros((0, 5))
 
 optimizer = torch.optim.Adam(model.parameters(), lr=config['training']['lr'],
                              weight_decay=config['training']['weight_decay'])
-
-train_iter = iter(train_loader)
-test_iter = iter(test_loader)
 
 
 # Resume training if needed
@@ -146,7 +154,8 @@ for it in range(start_iter, max_iter):
         train_iter = iter(train_loader)
         x, y = next(train_iter)
     optimizer.zero_grad()
-    loss = model.forward_kld(x, y.to(device) if class_cond else None)
+    nll = model(x, y.to(device) if class_cond else None)
+    loss = torch.mean(nll)
 
     if ~(torch.isnan(loss) | torch.isinf(loss)):
         loss.backward()
