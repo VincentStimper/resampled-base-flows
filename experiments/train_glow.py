@@ -37,8 +37,8 @@ config = utils.get_config(args.config)
 
 
 # Get computing device
-device = torch.device('cuda' if not args.mode == 'cpu' and
-                                torch.cuda.is_available() else 'cpu')
+use_gpu = not args.mode == 'cpu'
+device = torch.device('cuda' if use_gpu and torch.cuda.is_available() else 'cpu')
 
 
 # Set seed if needed
@@ -194,7 +194,7 @@ for it in range(start_iter, max_iter):
                                  trans=bpd_trans, trans_param=bpd_param)
             bpd_test = b.to('cpu').numpy()
             del(x, y, b)
-            if not args.cpu:
+            if use_gpu:
                 torch.cuda.empty_cache()
         bpd_append = np.array([[it + 1, np.nanmean(bpd_train), np.nanstd(bpd_train),
                                 np.nanmean(bpd_test), np.nanstd(bpd_test)]])
@@ -230,7 +230,7 @@ for it in range(start_iter, max_iter):
             img = np.transpose(tv.utils.make_grid(x_, nrow=nrow).numpy(), (1, 2, 0))
             plt.imsave(os.path.join(sam_dir, 'samples_%07i.png' % (it + 1)), img)
             del(x, y, x_)
-            if not args.cpu:
+            if use_gpu:
                 torch.cuda.empty_cache()
 
         if args.tlimit is not None:
