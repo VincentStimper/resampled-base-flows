@@ -62,8 +62,9 @@ if config['dataset']['name'] == 'cifar10':
     if config['dataset']['transform']['type'] == 'logit':
         alpha = config['dataset']['transform']['param']
         logit = nf.utils.Logit(alpha=alpha)
+        trans_dtype = 'float' if args.precision == 'mixed' else args.precision
         test_trans = [tv.transforms.ToTensor(), nf.utils.Jitter(),
-                      logit, nf.utils.ToDevice(device, args.precision)]
+                      logit, nf.utils.ToDevice(device, trans_dtype)]
         train_trans = [tv.transforms.RandomHorizontalFlip()] + test_trans
         # Set parameters for bits per dim evaluation
         bpd_trans = 'logit'
@@ -180,6 +181,8 @@ for it in range(start_iter, max_iter):
         x, y = next(train_iter)
     optimizer.zero_grad()
     if args.precision == 'mixed':
+        if it == 0:
+            _ = model(x, y.to(device) if class_cond else None)
         with torch.cuda.amp.autocast():
             nll = model(x, y.to(device) if class_cond else None,
                         autocast=True if data_parallel else False)
