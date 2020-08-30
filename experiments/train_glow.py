@@ -194,7 +194,7 @@ for it in range(start_iter, max_iter):
         scaler.step(optimizer)
         scaler.update()
     else:
-        if args.precsion == 'double':
+        if args.precision == 'double':
             x = x.double()
         nll = model(x.to(device), y.to(device) if class_cond else None)
         loss = torch.mean(nll)
@@ -214,7 +214,7 @@ for it in range(start_iter, max_iter):
             except StopIteration:
                 train_iter = iter(train_loader)
                 x, y = next(train_iter)
-            if args.precsion == 'double':
+            if args.precision == 'double':
                 x = x.double()
             b = utils.bitsPerDim(model, x.to(device), y.to(device) if class_cond else None,
                                  trans=bpd_trans, trans_param=bpd_param)
@@ -224,7 +224,7 @@ for it in range(start_iter, max_iter):
             except StopIteration:
                 test_iter = iter(test_loader)
                 x, y = next(test_iter)
-            if args.precsion == 'double':
+            if args.precision == 'double':
                 x = x.double()
             b = utils.bitsPerDim(model, x.to(device), y.to(device) if class_cond else None,
                                  trans=bpd_trans, trans_param=bpd_param)
