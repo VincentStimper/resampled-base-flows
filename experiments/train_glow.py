@@ -26,6 +26,8 @@ parser.add_argument('--config', type=str, default='config/glow.yaml',
 parser.add_argument('--resume', action='store_true', help='Flag whether to resume training')
 parser.add_argument('--mode', type=str, default='mgpu',
                     help='Compute mode, can be cpu, gpu, or mgpu for multiple gpu')
+parser.add_argument('--precision', type=str, default='float',
+                    help='Precision to be used for computation, can be float or double')
 parser.add_argument('--tlimit', type=float, default=None,
                     help='Number of hours after which to stop training')
 
@@ -61,7 +63,7 @@ if config['dataset']['name'] == 'cifar10':
         alpha = config['dataset']['transform']['param']
         logit = nf.utils.Logit(alpha=alpha)
         test_trans = [tv.transforms.ToTensor(), nf.utils.Jitter(),
-                      logit, nf.utils.ToDevice(device)]
+                      logit, nf.utils.ToDevice(device, args.precision)]
         train_trans = [tv.transforms.RandomHorizontalFlip()] + test_trans
         # Set parameters for bits per dim evaluation
         bpd_trans = 'logit'
@@ -91,7 +93,8 @@ model = Glow(config['model'])
 
 # Move model on GPU if available
 model = model.to(device)
-model = model.double()
+if args.precision == 'double':
+    model = model.double()
 
 if use_gpu and args.mode == 'mgpu' and torch.cuda.device_count() > 1:
     # Initialize ActNorm Layers
