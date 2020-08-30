@@ -83,11 +83,18 @@ class Glow(nf.MultiscaleFlow):
         # Construct flow model
         super().__init__(q0, flows, merges)
 
-    def forward(self, x, y=None):
+    def forward(self, x, y=None, autocast=False):
         """
         Forward pass for data parallel computation
         :param x: Input batch
         :param y: Labels of input batch
+        :param autocast: Flag whether to do autocast inside forward pass
+        (necessary to use mixed precision with DataParallel model)
         :return: Negative log-likelihood of batch
         """
-        return -self.log_prob(x, y)
+        if autocast:
+            with torch.cuda.amp.autocast():
+                out = -self.log_prob(x, y)
+                return out
+        else:
+            return -self.log_prob(x, y)

@@ -27,7 +27,7 @@ parser.add_argument('--resume', action='store_true', help='Flag whether to resum
 parser.add_argument('--mode', type=str, default='mgpu',
                     help='Compute mode, can be cpu, gpu, or mgpu for multiple gpu')
 parser.add_argument('--precision', type=str, default='float',
-                    help='Precision to be used for computation, can be float or double')
+                    help='Precision to be used for computation, can be float, double or mixed')
 parser.add_argument('--tlimit', type=float, default=None,
                     help='Number of hours after which to stop training')
 
@@ -140,6 +140,8 @@ bpd_hist = np.zeros((0, 5))
 
 optimizer = torch.optim.Adam(model.parameters(), lr=config['training']['lr'],
                              weight_decay=config['training']['weight_decay'])
+if args.precision == 'mixed':
+    scaler = torch.cuda.amp.GradScaler()
 
 
 # Resume training if needed
@@ -155,6 +157,10 @@ if args.resume:
         optimizer_path = os.path.join(cp_dir, 'optimizer.pt')
         if os.path.exists(optimizer_path):
             optimizer.load_state_dict(torch.load(optimizer_path))
+        if args.precision == 'mixed':
+            scaler_path = os.path.join(cp_dir, 'scaler.pt')
+            if os.path.exists(scaler_path):
+                scaler.load_state_dict(torch.load(scaler_path))
         loss_path = os.path.join(log_dir, 'loss.csv')
         if os.path.exists(loss_path):
             loss_hist = np.loadtxt(loss_path, delimiter=',', skiprows=1)
@@ -173,12 +179,21 @@ for it in range(start_iter, max_iter):
         train_iter = iter(train_loader)
         x, y = next(train_iter)
     optimizer.zero_grad()
-    nll = model(x, y.to(device) if class_cond else None)
-    loss = torch.mean(nll)
+    if args.precision == 'mixed':
+        with torch.cuda.amp.autocast():
+            nll = model(x, y.to(device) if class_cond else None,
+                        autocast=True if data_parallel else False)
+            loss = torch.mean(nll)
 
-    if ~(torch.isnan(loss) | torch.isinf(loss)):
-        loss.backward()
-        optimizer.step()
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
+    else:
+        nll = model(x, y.to(device) if class_cond else None)
+        loss = torch.mean(nll)
+        if ~(torch.isnan(loss) | torch.isinf(loss)):
+            loss.backward()
+            optimizer.step()
 
     loss_append = np.array([[it + 1, loss.detach().to('cpu').numpy()]])
     loss_hist = np.concatenate([loss_hist, loss_append])
@@ -220,6 +235,8 @@ for it in range(start_iter, max_iter):
         else:
             model.save(os.path.join(cp_dir, 'model_%07i.pt' % (it + 1)))
         torch.save(optimizer.state_dict(), os.path.join(cp_dir, 'optimizer.pt'))
+        if args.precision == 'mixed':
+            torch.save(scaler.state_dict(), os.path.join(cp_dir, 'scaler.pt'))
 
         # Generate samples
         with torch.no_grad():
