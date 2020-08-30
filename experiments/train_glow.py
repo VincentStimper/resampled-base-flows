@@ -174,6 +174,7 @@ if args.resume:
 
 # Train model
 for it in range(start_iter, max_iter):
+    # Training step
     try:
         x, y = next(train_iter)
     except StopIteration:
@@ -202,6 +203,7 @@ for it in range(start_iter, max_iter):
     loss_hist = np.concatenate([loss_hist, loss_append])
     del (x, y, loss, nll)
 
+    # Evaluation
     if (it + 1) % log_iter == 0:
         with torch.no_grad():
             try:
@@ -231,6 +233,7 @@ for it in range(start_iter, max_iter):
         np.savetxt(os.path.join(log_dir, 'loss.csv'), loss_hist, delimiter=',',
                    header='it,loss', comments='')
 
+    # Checkpoint, i.e. save model and generate samples
     if (it + 1) % cp_iter == 0:
         # Save checkpoint
         if data_parallel:
