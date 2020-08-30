@@ -41,6 +41,8 @@ config = utils.get_config(args.config)
 # Get computing device
 use_gpu = not args.mode == 'cpu' and torch.cuda.is_available()
 device = torch.device('cuda' if use_gpu else 'cpu')
+if use_gpu:
+    torch.backends.cudnn.benchmark = True
 
 
 # Set seed if needed
@@ -75,7 +77,7 @@ if config['dataset']['name'] == 'cifar10':
     train_data = tv.datasets.CIFAR10(config['dataset']['path'], train=True, download=True,
                                      transform=tv.transforms.Compose(train_trans))
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size,
-                                               shuffle=True)
+                                               shuffle=True, num_workers=4, pin_memory=True)
 
     test_data = tv.datasets.CIFAR10(config['dataset']['path'], train=False, download=True,
                                     transform=tv.transforms.Compose(test_trans))
