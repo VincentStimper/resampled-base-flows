@@ -64,7 +64,6 @@ if config['dataset']['name'] == 'cifar10':
     if config['dataset']['transform']['type'] == 'logit':
         alpha = config['dataset']['transform']['param']
         logit = nf.utils.Logit(alpha=alpha)
-        trans_dtype = 'float' if args.precision == 'mixed' else args.precision
         test_trans = [tv.transforms.ToTensor(), nf.utils.Jitter(), logit]
         if args.precision == 'double':
             test_trans += [utils.ToDouble()]
@@ -183,7 +182,6 @@ for it in range(start_iter, max_iter):
     except StopIteration:
         train_iter = iter(train_loader)
         x, y = next(train_iter)
-    optimizer.zero_grad()
     if args.precision == 'mixed':
         if it == 0:
             _ = model(x.to(device), y.to(device) if class_cond else None)
@@ -202,8 +200,14 @@ for it in range(start_iter, max_iter):
             loss.backward()
             optimizer.step()
 
+    # Log loss
     loss_append = np.array([[it + 1, loss.detach().to('cpu').numpy()]])
     loss_hist = np.concatenate([loss_hist, loss_append])
+
+    # Clear gradients
+    nf.utils.clear_grad(model)
+
+    # Delete vars to free memory
     del (x, y, loss, nll)
 
     # Evaluation
