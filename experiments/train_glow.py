@@ -1,6 +1,8 @@
 # Import required packages
 import torch
 import torchvision as tv
+import torch_optimizer as optim
+
 import numpy as np
 import normflow as nf
 
@@ -141,8 +143,16 @@ if 'sample_temperature' in config['training']:
 loss_hist = np.zeros((0, 2))
 bpd_hist = np.zeros((0, 5))
 
-optimizer = torch.optim.Adam(model.parameters(), lr=config['training']['lr'],
-                             weight_decay=config['training']['weight_decay'])
+# Initialize optimizer
+lr = config['training']['lr']
+weight_decay = config['training']['weight_decay']
+optimizer_name = 'adam' if not 'optimizer' in config['training'] else config['training']['optimizer']
+if optimizer_name == 'adam':
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+elif optimizer_name == 'lamb':
+    optimizer = optim.Lamb(model.parameters(), lr=lr, weight_decay=weight_decay)
+elif optimizer_name == 'novograd':
+    optimizer = optim.NovoGrad(model.parameters(), lr=lr, weight_decay=weight_decay)
 if args.precision == 'mixed':
     scaler = torch.cuda.amp.GradScaler()
 
