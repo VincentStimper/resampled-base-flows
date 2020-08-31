@@ -66,6 +66,8 @@ if config['dataset']['name'] == 'cifar10':
         logit = nf.utils.Logit(alpha=alpha)
         trans_dtype = 'float' if args.precision == 'mixed' else args.precision
         test_trans = [tv.transforms.ToTensor(), nf.utils.Jitter(), logit]
+        if args.precision == 'double':
+            test_trans += [utils.ToDouble()]
         train_trans = [tv.transforms.RandomHorizontalFlip()] + test_trans
         # Set parameters for bits per dim evaluation
         bpd_trans = 'logit'
@@ -194,8 +196,6 @@ for it in range(start_iter, max_iter):
         scaler.step(optimizer)
         scaler.update()
     else:
-        if args.precision == 'double':
-            x = x.double()
         nll = model(x.to(device), y.to(device) if class_cond else None)
         loss = torch.mean(nll)
         if ~(torch.isnan(loss) | torch.isinf(loss)):
@@ -214,8 +214,6 @@ for it in range(start_iter, max_iter):
             except StopIteration:
                 train_iter = iter(train_loader)
                 x, y = next(train_iter)
-            if args.precision == 'double':
-                x = x.double()
             b = utils.bitsPerDim(model, x.to(device), y.to(device) if class_cond else None,
                                  trans=bpd_trans, trans_param=bpd_param)
             bpd_train = b.to('cpu').numpy()
@@ -224,8 +222,6 @@ for it in range(start_iter, max_iter):
             except StopIteration:
                 test_iter = iter(test_loader)
                 x, y = next(test_iter)
-            if args.precision == 'double':
-                x = x.double()
             b = utils.bitsPerDim(model, x.to(device), y.to(device) if class_cond else None,
                                  trans=bpd_trans, trans_param=bpd_param)
             bpd_test = b.to('cpu').numpy()

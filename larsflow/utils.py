@@ -82,3 +82,14 @@ def bitsPerDimDataset(model, data_loader, class_cond=True, trans='logit',
             n += len(x) - np.sum(np.isnan(b_np))
         b = b_cum / n
     return b
+
+
+class ToDouble():
+    """
+    Transform for dataloader casting input to double
+    """
+    def __init__(self):
+        pass
+
+    def __call__(self, x):
+        return x.double()
