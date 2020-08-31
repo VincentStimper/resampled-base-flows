@@ -106,7 +106,7 @@ if args.precision == 'double':
 # Initialize ActNorm Layers
 with torch.no_grad():
     x, y = next(train_iter)
-    _ = model(x, y.to(device) if class_cond else None)
+    _ = model(x, y if class_cond else None)
     del(x, y)
 train_iter = iter(train_loader)
 
