@@ -208,8 +208,8 @@ for it in range(start_iter, max_iter):
             optimizer.step()
 
     # Log loss
-    loss_append = np.array([[it + 1, loss.detach().to('cpu').numpy()]])
-    loss_hist = np.concatenate([loss_hist, loss_append])
+    #loss_append = np.array([[it + 1, loss.detach().to('cpu').numpy()]])
+    #loss_hist = np.concatenate([loss_hist, loss_append])
 
     # Clear gradients
     nf.utils.clear_grad(model)
