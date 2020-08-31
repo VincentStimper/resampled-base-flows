@@ -45,6 +45,10 @@ use_gpu = not args.mode == 'cpu' and torch.cuda.is_available()
 device = torch.device('cuda' if use_gpu else 'cpu')
 if use_gpu:
     torch.backends.cudnn.benchmark = True
+if use_gpu and args.mode == 'mgpu' and torch.cuda.device_count() > 1:
+    data_parallel = True
+else:
+    data_parallel = False
 
 
 # Set seed if needed
@@ -96,25 +100,20 @@ test_iter = iter(test_loader)
 # Create model
 model = Glow(config['model'])
 
-# Move model on GPU if available
-model = model.to(device)
 if args.precision == 'double':
     model = model.double()
 
-if use_gpu and args.mode == 'mgpu' and torch.cuda.device_count() > 1:
-    # Initialize ActNorm Layers
-    with torch.no_grad():
-        nsplit = batch_size // torch.cuda.device_count()
-        if nsplit == 0:
-            nsplit = 1
-        x, y = next(train_iter)
-        _ = model(x[:nsplit, ...], y[:nsplit, ...].to(device) if class_cond else None)
-        del(x, y)
+# Initialize ActNorm Layers
+with torch.no_grad():
+    x, y = next(train_iter)
+    _ = model(x, y.to(device) if class_cond else None)
+    del(x, y)
+train_iter = iter(train_loader)
+
+# Move model on GPU if available
+if data_parallel:
     model = torch.nn.DataParallel(model)
-    model = model.to(device)
-    data_parallel = True
-else:
-    data_parallel = False
+model = model.to(device)
 
 
 # Prepare folders for results
@@ -193,8 +192,6 @@ for it in range(start_iter, max_iter):
         train_iter = iter(train_loader)
         x, y = next(train_iter)
     if args.precision == 'mixed':
-        if it == 0:
-            _ = model(x.to(device), y.to(device) if class_cond else None)
         with torch.cuda.amp.autocast():
             nll = model(x.to(device), y.to(device) if class_cond else None,
                         autocast=True if data_parallel else False)
