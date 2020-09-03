@@ -200,7 +200,8 @@ for it in range(start_iter, max_iter):
         x, y = next(train_iter)
     if args.precision == 'mixed':
         with torch.cuda.amp.autocast():
-            nll = model(x.to(device), y.to(device) if class_cond else None,
+            nll = model(x.to(device, non_blocking=True),
+                        y.to(device, non_blocking=True) if class_cond else None,
                         autocast=True if data_parallel else False)
             loss = torch.mean(nll)
 
@@ -208,7 +209,8 @@ for it in range(start_iter, max_iter):
         scaler.step(optimizer)
         scaler.update()
     else:
-        nll = model(x.to(device), y.to(device) if class_cond else None)
+        nll = model(x.to(device, non_blocking=True),
+                    y.to(device, non_blocking=True) if class_cond else None)
         loss = torch.mean(nll)
         if ~(torch.isnan(loss) | torch.isinf(loss)):
             loss.backward()
@@ -236,7 +238,8 @@ for it in range(start_iter, max_iter):
             except StopIteration:
                 train_iter = iter(train_loader)
                 x, y = next(train_iter)
-            b = utils.bitsPerDim(model, x.to(device), y.to(device) if class_cond else None,
+            b = utils.bitsPerDim(model, x.to(device, non_blocking=True),
+                                 y.to(device, non_blocking=True) if class_cond else None,
                                  trans=bpd_trans, trans_param=bpd_param)
             bpd_train = b.to('cpu').numpy()
             try:
@@ -244,7 +247,8 @@ for it in range(start_iter, max_iter):
             except StopIteration:
                 test_iter = iter(test_loader)
                 x, y = next(test_iter)
-            b = utils.bitsPerDim(model, x.to(device), y.to(device) if class_cond else None,
+            b = utils.bitsPerDim(model, x.to(device, non_blocking=True),
+                                 y.to(device, non_blocking=True) if class_cond else None,
                                  trans=bpd_trans, trans_param=bpd_param)
             bpd_test = b.to('cpu').numpy()
             del(x, y, b)
