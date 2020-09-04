@@ -71,7 +71,7 @@ if config['dataset']['name'] == 'cifar10':
     if config['dataset']['transform']['type'] == 'logit':
         alpha = config['dataset']['transform']['param']
         logit = nf.utils.Logit(alpha=alpha)
-        test_trans = [tv.transforms.ToTensor()]#, nf.utils.Jitter(), logit]
+        test_trans = [tv.transforms.ToTensor(), nf.utils.Jitter(), logit]
         if args.precision == 'double':
             test_trans += [utils.ToDouble()]
         train_trans = [tv.transforms.RandomHorizontalFlip()] + test_trans
@@ -217,7 +217,7 @@ for it in range(start_iter, max_iter):
             optimizer.step()
 
     # Log loss
-    loss_append = np.array([[it + 1, loss.detach().to('cpu').numpy()]])
+    loss_append = np.array([[it + 1, loss.item()]])
     loss_hist = np.concatenate([loss_hist, loss_append])
 
     # Clear gradients
