@@ -213,6 +213,7 @@ for it in range(start_iter, max_iter):
                     y.to(device, non_blocking=True) if class_cond else None)
         loss = torch.mean(nll)
         if ~(torch.isnan(loss) | torch.isinf(loss)):
+            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
@@ -221,7 +222,7 @@ for it in range(start_iter, max_iter):
     loss_hist = np.concatenate([loss_hist, loss_append])
 
     # Clear gradients
-    nf.utils.clear_grad(model)
+    #nf.utils.clear_grad(model)
 
     # Do lr warmup if needed
     if lr_warmup:
