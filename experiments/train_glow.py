@@ -232,22 +232,23 @@ for it in range(start_iter, max_iter):
             except StopIteration:
                 train_iter = iter(train_loader)
                 x, y = next(train_iter)
-            b = utils.bitsPerDim(model, x.to(device, non_blocking=True),
-                                 y.to(device, non_blocking=True) if class_cond else None,
-                                 trans=bpd_trans, trans_param=bpd_param)
-            bpd_train = b.to('cpu').numpy()
+            nll = model(x.to(device, non_blocking=True),
+                        y.to(device, non_blocking=True) if class_cond else None)
+            nll_train = nll.to('cpu').numpy()
             try:
                 x, y = next(test_iter)
             except StopIteration:
                 test_iter = iter(test_loader)
                 x, y = next(test_iter)
-            b = utils.bitsPerDim(model, x.to(device, non_blocking=True),
-                                 y.to(device, non_blocking=True) if class_cond else None,
-                                 trans=bpd_trans, trans_param=bpd_param)
-            bpd_test = b.to('cpu').numpy()
-            del(x, y, b)
+            nll = model(x.to(device, non_blocking=True),
+                        y.to(device, non_blocking=True) if class_cond else None)
+            nll_test = nll.to('cpu').numpy()
+            n_dims = np.prod([x.shape[i] for i in range(1, 4)])
+            del(x, y, nll)
             if use_gpu:
                 torch.cuda.empty_cache()
+        bpd_train = nll_train / np.log(2) / n_dims + 8
+        bpd_test = nll_test / np.log(2) / n_dims + 8
         bpd_append = np.array([[it + 1, np.nanmean(bpd_train), np.nanstd(bpd_train),
                                 np.nanmean(bpd_test), np.nanstd(bpd_test)]])
         bpd_hist = np.concatenate([bpd_hist, bpd_append])
