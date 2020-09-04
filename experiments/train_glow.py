@@ -228,7 +228,7 @@ for it in range(start_iter, max_iter):
         warmup_scheduler.dampen()
 
     # Delete vars to free memory
-    del (x, y, loss, nll)
+    #del (x, y, loss, nll)
 
     # Evaluation
     if (it + 1) % log_iter == 0:
