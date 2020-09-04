@@ -71,7 +71,7 @@ if config['dataset']['name'] == 'cifar10':
     if config['dataset']['transform']['type'] == 'logit':
         alpha = config['dataset']['transform']['param']
         logit = nf.utils.Logit(alpha=alpha)
-        test_trans = [tv.transforms.ToTensor(), nf.utils.Jitter(), logit]
+        test_trans = [tv.transforms.ToTensor()]#, nf.utils.Jitter(), logit]
         if args.precision == 'double':
             test_trans += [utils.ToDouble()]
         train_trans = [tv.transforms.RandomHorizontalFlip()] + test_trans
