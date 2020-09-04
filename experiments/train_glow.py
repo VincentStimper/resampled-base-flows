@@ -63,19 +63,18 @@ class_cond = config['model']['class_cond']
 
 # Load dataset
 if config['dataset']['name'] == 'cifar10':
+    # Model parameter
     config['model']['input_shape'] = (3, 32, 32)
     if class_cond:
         num_classes = 10
         config['model']['num_classes'] = 10
 
-    if config['dataset']['transform']['type'] == 'logit':
-        test_trans = [tv.transforms.ToTensor()]
-        if args.precision == 'double':
-            test_trans += [utils.ToDouble()]
-        train_trans = [tv.transforms.RandomHorizontalFlip()] + test_trans
-    else:
-        raise NotImplementedError('The transform ' + config['dataset']['transform']['type']
-                                  + 'is not implemented for ' + config['dataset']['name'])
+    # Transform for data loader
+    test_trans = [tv.transforms.ToTensor()]
+    if args.precision == 'double':
+        test_trans += [utils.ToDouble()]
+    train_trans = [tv.transforms.RandomHorizontalFlip()] + test_trans
+    # Init data loader
     train_data = tv.datasets.CIFAR10(config['dataset']['path'], train=True, download=True,
                                      transform=tv.transforms.Compose(train_trans))
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size,
