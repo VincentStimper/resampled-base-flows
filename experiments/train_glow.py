@@ -198,22 +198,21 @@ for it in range(start_iter, max_iter):
     except StopIteration:
         train_iter = iter(train_loader)
         x, y = next(train_iter)
+    # Move data to device
+    x = x.to(device, non_blocking=True)
+    y = y.to(device, non_blocking=True) if class_cond else None
     if args.precision == 'mixed':
         with torch.cuda.amp.autocast():
-            nll = model(x.to(device, non_blocking=True),
-                        y.to(device, non_blocking=True) if class_cond else None,
-                        autocast=True if data_parallel else False)
+            nll = model(x, y, autocast=True if data_parallel else False)
             loss = torch.mean(nll)
 
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
     else:
-        nll = model(x.to(device, non_blocking=True),
-                    y.to(device, non_blocking=True) if class_cond else None)
+        nll = model(x, y)
         loss = torch.mean(nll)
         if ~(torch.isnan(loss) | torch.isinf(loss)):
-            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
@@ -222,7 +221,7 @@ for it in range(start_iter, max_iter):
     loss_hist = np.concatenate([loss_hist, loss_append])
 
     # Clear gradients
-    #nf.utils.clear_grad(model)
+    nf.utils.clear_grad(model)
 
     # Do lr warmup if needed
     if lr_warmup:
