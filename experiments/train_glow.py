@@ -69,22 +69,17 @@ if config['dataset']['name'] == 'cifar10':
         config['model']['num_classes'] = 10
 
     if config['dataset']['transform']['type'] == 'logit':
-        alpha = config['dataset']['transform']['param']
-        logit = nf.utils.Logit(alpha=alpha)
-        test_trans = [tv.transforms.ToTensor(), nf.utils.Jitter(), logit]
+        test_trans = [tv.transforms.ToTensor()]
         if args.precision == 'double':
             test_trans += [utils.ToDouble()]
         train_trans = [tv.transforms.RandomHorizontalFlip()] + test_trans
-        # Set parameters for bits per dim evaluation
-        bpd_trans = 'logit'
-        bpd_param = [alpha]
     else:
         raise NotImplementedError('The transform ' + config['dataset']['transform']['type']
                                   + 'is not implemented for ' + config['dataset']['name'])
     train_data = tv.datasets.CIFAR10(config['dataset']['path'], train=True, download=True,
                                      transform=tv.transforms.Compose(train_trans))
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size,
-                                               shuffle=True)#, num_workers=4, pin_memory=True)
+                                               shuffle=True, num_workers=4, pin_memory=True)
 
     test_data = tv.datasets.CIFAR10(config['dataset']['path'], train=False, download=True,
                                     transform=tv.transforms.Compose(test_trans))

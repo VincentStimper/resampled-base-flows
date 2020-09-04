@@ -60,6 +60,16 @@ class Glow(nf.MultiscaleFlow):
         if class_cond:
             num_classes = config['num_classes']
 
+        # Get transform
+        if 'transform' in config:
+            if config['transform']['type'] == 'logit':
+                transform = nf.transforms.Logit(alpha=config['transform']['param'])
+            else:
+                raise NotImplementedError('The transform ' + config['transform']['type']
+                                          + ' is not yet implemented')
+        else:
+            transform = None
+
         # Set up flows, distributions and merge operations
         q0 = []
         merges = []
@@ -81,7 +91,7 @@ class Glow(nf.MultiscaleFlow):
             q0 += [nf.distributions.ClassCondDiagGaussian(latent_shape, num_classes)]
 
         # Construct flow model
-        super().__init__(q0, flows, merges)
+        super().__init__(q0, flows, merges, transform, class_cond)
 
     def forward(self, x, y=None, autocast=False):
         """
