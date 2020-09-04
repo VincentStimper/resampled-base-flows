@@ -281,8 +281,6 @@ for it in range(start_iter, max_iter):
                     x, _ = model.module.sample(num_samples, y=y, temperature=st)
                 else:
                     x, _ = model.sample(num_samples, y=y, temperature=st)
-                if config['dataset']['transform']['type'] == 'logit':
-                    x = logit.inverse(x)
                 x_ = torch.clamp(x.cpu(), 0, 1)
                 img = np.transpose(tv.utils.make_grid(x_, nrow=nrow).numpy(), (1, 2, 0))
                 plt.imsave(os.path.join(sam_dir, 'samples_T_%.2f_%07i.png' % (st, it + 1)), img)
