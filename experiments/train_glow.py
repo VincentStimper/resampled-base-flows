@@ -180,8 +180,9 @@ if args.resume:
             bpd_hist = np.loadtxt(bpd_path, delimiter=',', skiprows=1)
             bpd_hist = bpd_hist[bpd_hist[:, 0] <= start_iter, :]
         if lr_warmup:
-            for _ in range(start_iter):
-                warmup_scheduler.step()
+            warmup_scheduler_path = os.path.join(cp_dir, 'warmup_scheduler.pt')
+            if os.path.exists(warmup_scheduler_path):
+                warmup_scheduler.load_state_dict(torch.load(warmup_scheduler_path))
 
 
 # Train model
@@ -267,6 +268,8 @@ for it in range(start_iter, max_iter):
         torch.save(optimizer.state_dict(), os.path.join(cp_dir, 'optimizer.pt'))
         if args.precision == 'mixed':
             torch.save(scaler.state_dict(), os.path.join(cp_dir, 'scaler.pt'))
+        if lr_warmup:
+            torch.save(warmup_scheduler.state_dict(), os.path.join(cp_dir, 'warmup_scheduler.pt'))
 
         # Generate samples
         with torch.no_grad():
