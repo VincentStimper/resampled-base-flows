@@ -15,9 +15,11 @@ model:
   scale: True             # Flag whether to include scale parameter in coupling layers
   split_mode: channel     # Method to split features in coupling layers
   class_cond: True        # Flag whether model shall be class conditional
+  use_lu: False           # Flag whether to use LU decomposition in Inv1x1Conv layers
 
 training:
   max_iter: 1000          # Maximum number of iterations
+  warmup_iter:            # Number of iterations of linearly warm up learning rate
   batch_size: 128         # Batch size for training and evalutation while training
   lr: 1.e-3               # Learning rate
   weight_decay: 1.e-5     # Weight decay parameter
