@@ -180,7 +180,8 @@ if args.resume:
             bpd_hist = np.loadtxt(bpd_path, delimiter=',', skiprows=1)
             bpd_hist = bpd_hist[bpd_hist[:, 0] <= start_iter, :]
         if lr_warmup:
-            warmup_scheduler.step(start_iter)
+            for _ in range(start_iter):
+                warmup_scheduler.step()
 
 
 # Train model
