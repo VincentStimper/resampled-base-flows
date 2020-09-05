@@ -2,7 +2,6 @@
 import torch
 import torchvision as tv
 import torch_optimizer as optim
-import pytorch_warmup as warmup
 
 import numpy as np
 import normflow as nf
@@ -151,8 +150,8 @@ if args.precision == 'mixed':
     scaler = torch.cuda.amp.GradScaler()
 lr_warmup = 'warmup_iter' in config['training'] and config['training']['warmup_iter'] is not None
 if lr_warmup:
-    warmup_scheduler = warmup.LinearWarmup(optimizer,
-                                           warmup_period=config['training']['warmup_iter'])
+    warmup_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer,
+                            lambda s: min(1., 1 / config['training']['warmup_iter']))
 
 
 # Resume training if needed
@@ -181,7 +180,7 @@ if args.resume:
             bpd_hist = np.loadtxt(bpd_path, delimiter=',', skiprows=1)
             bpd_hist = bpd_hist[bpd_hist[:, 0] <= start_iter, :]
         if lr_warmup:
-            warmup_scheduler.dampen(start_iter)
+            warmup_scheduler.step(start_iter)
 
 
 # Train model
@@ -219,7 +218,7 @@ for it in range(start_iter, max_iter):
 
     # Do lr warmup if needed
     if lr_warmup:
-        warmup_scheduler.dampen()
+        warmup_scheduler.step()
 
     # Delete vars to free memory
     #del (x, y, loss, nll)
