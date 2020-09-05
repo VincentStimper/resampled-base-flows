@@ -56,6 +56,7 @@ class Glow(nf.MultiscaleFlow):
         hidden_channels = config['hidden_channels']
         split_mode = config['split_mode']
         scale = config['scale']
+        use_lu = False if not 'use_lu' in config else config['use_lu']
         class_cond = config['class_cond']
         if class_cond:
             num_classes = config['num_classes']
@@ -78,7 +79,8 @@ class Glow(nf.MultiscaleFlow):
             flows_ = []
             for j in range(K):
                 flows_ += [nf.flows.GlowBlock(channels * 2 ** (L + 1 - i), hidden_channels,
-                                              split_mode=split_mode, scale=scale)]
+                                              split_mode=split_mode, scale=scale,
+                                              use_lu=use_lu)]
             flows_ += [nf.flows.Squeeze()]
             flows += [flows_]
             if i > 0:
