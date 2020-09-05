@@ -151,7 +151,7 @@ if args.precision == 'mixed':
 lr_warmup = 'warmup_iter' in config['training'] and config['training']['warmup_iter'] is not None
 if lr_warmup:
     warmup_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer,
-                            lambda s: min(1., 1 / config['training']['warmup_iter']))
+                            lambda s: min(1., s / config['training']['warmup_iter']))
 
 
 # Resume training if needed
