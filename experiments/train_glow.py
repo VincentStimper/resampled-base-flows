@@ -222,9 +222,6 @@ for it in range(start_iter, max_iter):
     if lr_warmup:
         warmup_scheduler.step()
 
-    # Delete vars to free memory
-    #del (x, y, loss, nll)
-
     # Evaluation
     if (it + 1) % log_iter == 0:
         with torch.no_grad():
