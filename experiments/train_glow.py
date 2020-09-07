@@ -253,7 +253,7 @@ for it in range(start_iter, max_iter):
 
     # Debugging
     if distributed and (it + 1) % log_iter == 0:
-        model.module.save(os.path.join(cp_dir, 'model_' + args.rank + '_%07i.pt' % (it + 1)))
+        model.module.save(os.path.join(cp_dir, 'model_' + str(args.rank) + '_%07i.pt' % (it + 1)))
 
     # Evaluation
     if args.rank == 0 and (it + 1) % log_iter == 0:
