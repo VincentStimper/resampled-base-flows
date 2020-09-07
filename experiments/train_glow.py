@@ -1,5 +1,6 @@
 # Import required packages
 import torch
+from torch.utils import data
 import torchvision as tv
 import torch_optimizer as optim
 
@@ -26,12 +27,19 @@ parser = argparse.ArgumentParser(description='Train Glow model on image dataset.
 parser.add_argument('--config', type=str, default='config/glow.yaml',
                     help='Path config file specifying model architecture and training procedure')
 parser.add_argument('--resume', action='store_true', help='Flag whether to resume training')
-parser.add_argument('--mode', type=str, default='mgpu',
-                    help='Compute mode, can be cpu, gpu, or mgpu for multiple gpu')
+parser.add_argument('--mode', type=str, default='distributed',
+                    help='Compute mode, can be cpu, gpu, or distributed')
 parser.add_argument('--precision', type=str, default='float',
                     help='Precision to be used for computation, can be float, double or mixed')
 parser.add_argument('--tlimit', type=float, default=None,
                     help='Number of hours after which to stop training')
+parser.add_argument('--worldsize', type=int, default=1,
+                    help='Number of workers for distributed training')
+parser.add_argument('--rank', type=int, default=0,
+                    help='Rank within distributed worker group')
+parser.add_argument('--gpuid', type=int, default=0,
+                    help='Id of the GPU to use')
+
 
 args = parser.parse_args()
 
@@ -42,18 +50,23 @@ config = utils.get_config(args.config)
 
 # Get computing device
 use_gpu = not args.mode == 'cpu' and torch.cuda.is_available()
-device = torch.device('cuda' if use_gpu else 'cpu')
 if use_gpu:
     torch.backends.cudnn.benchmark = True
-if use_gpu and args.mode == 'mgpu' and torch.cuda.device_count() > 1:
-    data_parallel = True
+if use_gpu and args.mode == 'distributed':
+    distributed = True
+    torch.distributed.init_process_group(backend='nccl', init_method='env://',
+                                         world_size=args.worldsize, rank=args.rank)
+    device = torch.device('cuda:' + str(args.gpuid))
 else:
-    data_parallel = False
+    distributed = False
+    device = torch.device('cuda' if use_gpu else 'cpu')
 
 
 # Set seed if needed
 if 'seed' in config['training'] and config['training']['seed'] is not None:
     torch.manual_seed(config['training']['seed'])
+elif distributed:
+    torch.manual_seed(0)
 
 
 # Prepare training data
@@ -63,7 +76,8 @@ class_cond = config['model']['class_cond']
 # Load dataset
 if config['dataset']['name'] == 'cifar10':
     # Model parameter
-    config['model']['input_shape'] = (3, 32, 32)
+    input_shape = (3, 32, 32)
+    config['model']['input_shape'] = input_shape
     if class_cond:
         num_classes = 10
         config['model']['num_classes'] = 10
@@ -76,8 +90,23 @@ if config['dataset']['name'] == 'cifar10':
     # Init data loader
     train_data = tv.datasets.CIFAR10(config['dataset']['path'], train=True, download=True,
                                      transform=tv.transforms.Compose(train_trans))
-    train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size,
-                                               shuffle=True, num_workers=4, pin_memory=True)
+    test_data = tv.datasets.CIFAR10(config['dataset']['path'], train=False, download=True,
+                                    transform=tv.transforms.Compose(test_trans))
+    if distributed:
+        # Need to define sampler to ensure every worker gets a different batch
+        train_sampler = data.distributed.DistributedSampler(train_data,
+                                                            num_replicas=args.worldsize,
+                                                            rank=args.rank)
+        train_loader = data.DataLoader(dataset=train_data, batch_size=batch_size,
+                                       shuffle=False, num_workers=4, pin_memory=True,
+                                       sampler=train_sampler)
+        test_loader = data.DataLoader(dataset=test_data, batch_size=batch_size,
+                                      shuffle=True, num_workers=4, pin_memory=True)
+    else:
+        train_loader = data.DataLoader(train_data, batch_size=batch_size,
+                                       shuffle=True, num_workers=4, pin_memory=True)
+        test_loader = data.DataLoader(test_data, batch_size=batch_size,
+                                      shuffle=True, num_workers=4, pin_memory=True)
 
     test_data = tv.datasets.CIFAR10(config['dataset']['path'], train=False, download=True,
                                     transform=tv.transforms.Compose(test_trans))
@@ -86,9 +115,10 @@ if config['dataset']['name'] == 'cifar10':
 else:
     raise NotImplementedError('The dataset ' + config['dataset']['name']
                               + 'is not implemented.')
+# Get number of dims as they are needed to compute bits per dim later
+n_dims = np.prod(input_shape)
 
 train_iter = iter(train_loader)
-test_iter = iter(test_loader)
 
 
 # Create model
@@ -96,18 +126,6 @@ model = Glow(config['model'])
 
 if args.precision == 'double':
     model = model.double()
-
-# Initialize ActNorm Layers
-with torch.no_grad():
-    x, y = next(train_iter)
-    _ = model(x, y if class_cond else None)
-    del(x, y)
-train_iter = iter(train_loader)
-
-# Move model on GPU if available
-if data_parallel:
-    model = torch.nn.DataParallel(model)
-model = model.to(device)
 
 
 # Prepare folders for results
@@ -119,6 +137,24 @@ log_dir = os.path.join(root, 'log')
 for dir in [cp_dir, sam_dir, log_dir]:
     if not os.path.isdir(dir):
         os.mkdir(dir)
+
+# Resume training if needed, otherwise initialize ActNorm layers
+start_iter = 0
+latest_cp = utils.get_latest_checkpoint(cp_dir, 'model')
+if args.resume and latest_cp is not None:
+    model.load(latest_cp)
+    start_iter = int(latest_cp[-10:-3])
+else:
+    # Initialize ActNorm Layers
+    init_loader = data.DataLoader(train_data, batch_size=batch_size, shuffle=True)
+    with torch.no_grad():
+        x, y = next(iter(init_loader))
+        _ = model(x, y if class_cond else None)
+        del (x, y, init_loader)
+
+
+# Move model on GPU if available
+model = model.to(device)
 
 
 # Prepare training utilities
@@ -134,7 +170,7 @@ if 'sample_temperature' in config['training']:
         sample_temperature += [config['training']['sample_temperature']]
 
 loss_hist = np.zeros((0, 2))
-bpd_hist = np.zeros((0, 5))
+bpd_hist = np.zeros((0, 4))
 
 # Initialize optimizer
 lr = config['training']['lr']
@@ -157,32 +193,31 @@ if lr_warmup:
 # Resume training if needed
 start_iter = 0
 if args.resume:
-    latest_cp = utils.get_latest_checkpoint(cp_dir, 'model')
-    if latest_cp is not None:
-        if data_parallel:
-            model.module.load(latest_cp)
-        else:
-            model.load(latest_cp)
-        start_iter = int(latest_cp[-10:-3])
-        optimizer_path = os.path.join(cp_dir, 'optimizer.pt')
-        if os.path.exists(optimizer_path):
-            optimizer.load_state_dict(torch.load(optimizer_path))
-        if args.precision == 'mixed':
-            scaler_path = os.path.join(cp_dir, 'scaler.pt')
-            if os.path.exists(scaler_path):
-                scaler.load_state_dict(torch.load(scaler_path))
+    optimizer_path = os.path.join(cp_dir, 'optimizer.pt')
+    if os.path.exists(optimizer_path):
+        optimizer.load_state_dict(torch.load(optimizer_path))
+    if args.precision == 'mixed':
+        scaler_path = os.path.join(cp_dir, 'scaler.pt')
+        if os.path.exists(scaler_path):
+            scaler.load_state_dict(torch.load(scaler_path))
+    if lr_warmup:
+        warmup_scheduler_path = os.path.join(cp_dir, 'warmup_scheduler.pt')
+        if os.path.exists(warmup_scheduler_path):
+            warmup_scheduler.load_state_dict(torch.load(warmup_scheduler_path))
+    if args.rank == 0:
         loss_path = os.path.join(log_dir, 'loss.csv')
         if os.path.exists(loss_path):
             loss_hist = np.loadtxt(loss_path, delimiter=',', skiprows=1)
+            loss_hist = loss_hist[:, :2]
             loss_hist = loss_hist[loss_hist[:, 0] <= start_iter, :]
         bpd_path = os.path.join(log_dir, 'bits_per_dim.csv')
         if os.path.exists(bpd_path):
             bpd_hist = np.loadtxt(bpd_path, delimiter=',', skiprows=1)
             bpd_hist = bpd_hist[bpd_hist[:, 0] <= start_iter, :]
-        if lr_warmup:
-            warmup_scheduler_path = os.path.join(cp_dir, 'warmup_scheduler.pt')
-            if os.path.exists(warmup_scheduler_path):
-                warmup_scheduler.load_state_dict(torch.load(warmup_scheduler_path))
+
+# Make model a distributed one if needed
+if distributed:
+    model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpuid])
 
 
 # Train model
@@ -198,7 +233,7 @@ for it in range(start_iter, max_iter):
     y = y.to(device, non_blocking=True) if class_cond else None
     if args.precision == 'mixed':
         with torch.cuda.amp.autocast():
-            nll = model(x, y, autocast=True if data_parallel else False)
+            nll = model(x, y, autocast=True if distributed else False)
             loss = torch.mean(nll)
 
         scaler.scale(loss).backward()
@@ -212,8 +247,9 @@ for it in range(start_iter, max_iter):
             optimizer.step()
 
     # Log loss
-    loss_append = np.array([[it + 1, loss.item()]])
-    loss_hist = np.concatenate([loss_hist, loss_append])
+    if args.rank == 0:
+        loss_append = np.array([[it + 1, loss.item()]])
+        loss_hist = np.concatenate([loss_hist, loss_append])
 
     # Clear gradients
     nf.utils.clear_grad(model)
@@ -222,43 +258,21 @@ for it in range(start_iter, max_iter):
     if lr_warmup:
         warmup_scheduler.step()
 
+    # Debugging
+    if distributed and (it + 1) % log_iter == 0:
+        model.module.save(os.path.join(cp_dir, 'model_' + args.rank + '_%07i.pt' % (it + 1)))
+
     # Evaluation
-    if (it + 1) % log_iter == 0:
-        with torch.no_grad():
-            try:
-                x, y = next(train_iter)
-            except StopIteration:
-                train_iter = iter(train_loader)
-                x, y = next(train_iter)
-            nll = model(x.to(device, non_blocking=True),
-                        y.to(device, non_blocking=True) if class_cond else None)
-            nll_train = nll.to('cpu').numpy()
-            try:
-                x, y = next(test_iter)
-            except StopIteration:
-                test_iter = iter(test_loader)
-                x, y = next(test_iter)
-            nll = model(x.to(device, non_blocking=True),
-                        y.to(device, non_blocking=True) if class_cond else None)
-            nll_test = nll.to('cpu').numpy()
-            n_dims = np.prod([x.shape[i] for i in range(1, 4)])
-            del(x, y, nll)
-            if use_gpu:
-                torch.cuda.empty_cache()
-        bpd_train = nll_train / np.log(2) / n_dims + 8
-        bpd_test = nll_test / np.log(2) / n_dims + 8
-        bpd_append = np.array([[it + 1, np.nanmean(bpd_train), np.nanstd(bpd_train),
-                                np.nanmean(bpd_test), np.nanstd(bpd_test)]])
-        bpd_hist = np.concatenate([bpd_hist, bpd_append])
-        np.savetxt(os.path.join(log_dir, 'bits_per_dim.csv'), bpd_hist, delimiter=',',
-                   header='it,train_mean,train_std,test_mean,test_std', comments='')
-        np.savetxt(os.path.join(log_dir, 'loss.csv'), loss_hist, delimiter=',',
-                   header='it,loss', comments='')
+    if args.rank == 0 and (it + 1) % log_iter == 0:
+        bpd_train = loss_hist[:, 1:] / np.log(2) / n_dims + 8
+        np.savetxt(os.path.join(log_dir, 'loss.csv'),
+                   np.concatenate([loss_hist, bpd_train], 1),
+                   delimiter=',', header='it,loss,bpd', comments='')
 
     # Checkpoint, i.e. save model and generate samples
-    if (it + 1) % cp_iter == 0:
+    if args.rank == 0 and (it + 1) % cp_iter == 0:
         # Save checkpoint
-        if data_parallel:
+        if distributed:
             model.module.save(os.path.join(cp_dir, 'model_%07i.pt' % (it + 1)))
         else:
             model.save(os.path.join(cp_dir, 'model_%07i.pt' % (it + 1)))
@@ -268,8 +282,8 @@ for it in range(start_iter, max_iter):
         if lr_warmup:
             torch.save(warmup_scheduler.state_dict(), os.path.join(cp_dir, 'warmup_scheduler.pt'))
 
-        # Generate samples
         with torch.no_grad():
+            # Generate samples
             for st in sample_temperature:
                 if class_cond:
                     y = torch.arange(num_classes).repeat(num_samples).to(device)
@@ -277,7 +291,7 @@ for it in range(start_iter, max_iter):
                 else:
                     y = None
                     nrow = 8
-                if data_parallel:
+                if distributed:
                     x, _ = model.module.sample(num_samples, y=y, temperature=st)
                 else:
                     x, _ = model.sample(num_samples, y=y, temperature=st)
@@ -287,6 +301,28 @@ for it in range(start_iter, max_iter):
                 del(x, y, x_)
                 if use_gpu:
                     torch.cuda.empty_cache()
+
+            # Get bits per dim on test set
+            bpd_test = np.array([])
+            for x, y in iter(test_loader):
+                # Move data to device
+                x = x.to(device, non_blocking=True)
+                y = y.to(device, non_blocking=True) if class_cond else None
+                if args.precision == 'mixed':
+                    with torch.cuda.amp.autocast():
+                        nll = model(x, y, autocast=True if distributed else False)
+                else:
+                    nll = model(x, y)
+                bpd_test = np.concatenate([bpd_test,
+                                           nll.cpu().numpy() / np.log(2) / n_dims + 8])
+            n_not_nan = np.sum(np.logical_not(np.isnan(bpd_test)))
+            bpd_append = np.array([[it + 1, np.nanmean(bpd_test), np.nanstd(bpd_test),
+                                    np.nanstd(bpd_test) / np.sqrt(n_not_nan)]])
+            bpd_hist = np.concatenate([bpd_hist, bpd_append])
+            np.savetxt(os.path.join(log_dir, 'bits_per_dim.csv'), bpd_hist, delimiter=',',
+                       header='it,test_mean,test_std,test_err_mean', comments='')
+
+
 
         if args.tlimit is not None:
             time_past = (time() - start_time) / 3600
