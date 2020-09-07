@@ -184,8 +184,7 @@ if lr_warmup:
                             lambda s: min(1., s / config['training']['warmup_iter']))
 
 
-# Resume training if needed
-start_iter = 0
+# Load optimizer, etc. if needed
 if args.resume:
     optimizer_path = os.path.join(cp_dir, 'optimizer.pt')
     if os.path.exists(optimizer_path):
