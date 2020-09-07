@@ -316,7 +316,7 @@ for it in range(start_iter, max_iter):
                     torch.cuda.empty_cache()
 
     # Check whether time limit will be hit
-    if (it + 2) % cp_iter == 0:
+    if it % cp_iter == 0:
         if args.tlimit is not None:
             time_past = (time() - start_time) / 3600
             num_cp = (it + 1 - start_iter) / cp_iter
