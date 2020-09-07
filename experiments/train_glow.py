@@ -56,7 +56,7 @@ if use_gpu and args.mode == 'distributed':
     distributed = True
     torch.distributed.init_process_group(backend='nccl', init_method='env://',
                                          world_size=args.worldsize, rank=args.rank)
-    device = torch.device('cuda:' + str(args.gpuid))
+    device = torch.device('cuda')#torch.device('cuda:' + str(args.gpuid))
 else:
     distributed = False
     device = torch.device('cuda' if use_gpu else 'cpu')
@@ -213,7 +213,7 @@ if args.resume:
 
 # Make model a distributed one if needed
 if distributed:
-    model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpuid])
+    model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[0])#device_ids=[args.gpuid])
 
 
 # Train model
