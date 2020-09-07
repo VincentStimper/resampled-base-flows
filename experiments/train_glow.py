@@ -319,5 +319,5 @@ for it in range(start_iter, max_iter):
         if args.tlimit is not None:
             time_past = (time() - start_time) / 3600
             num_cp = (it + 1 - start_iter) / cp_iter
-            if time_past * (1 + 1 / num_cp) > args.tlimit:
+            if num_cp > .5 and time_past * (1 + 1 / num_cp) > args.tlimit:
                 break
