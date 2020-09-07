@@ -100,18 +100,12 @@ if config['dataset']['name'] == 'cifar10':
         train_loader = data.DataLoader(dataset=train_data, batch_size=batch_size,
                                        shuffle=False, num_workers=4, pin_memory=True,
                                        sampler=train_sampler)
-        test_loader = data.DataLoader(dataset=test_data, batch_size=batch_size,
-                                      shuffle=True, num_workers=4, pin_memory=True)
     else:
         train_loader = data.DataLoader(train_data, batch_size=batch_size,
                                        shuffle=True, num_workers=4, pin_memory=True)
-        test_loader = data.DataLoader(test_data, batch_size=batch_size,
-                                      shuffle=True, num_workers=4, pin_memory=True)
 
-    test_data = tv.datasets.CIFAR10(config['dataset']['path'], train=False, download=True,
-                                    transform=tv.transforms.Compose(test_trans))
-    test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size,
-                                              shuffle=True)
+    test_loader = data.DataLoader(test_data, batch_size=batch_size,
+                                  shuffle=True, num_workers=4, pin_memory=True)
 else:
     raise NotImplementedError('The dataset ' + config['dataset']['name']
                               + 'is not implemented.')
@@ -269,7 +263,7 @@ for it in range(start_iter, max_iter):
                    np.concatenate([loss_hist, bpd_train], 1),
                    delimiter=',', header='it,loss,bpd', comments='')
 
-    # Checkpoint, i.e. save model and generate samples
+    # Checkpoint, i.e. save model, generate samples, and get bits per dim on test set
     if args.rank == 0 and (it + 1) % cp_iter == 0:
         # Save checkpoint
         if distributed:
@@ -298,9 +292,6 @@ for it in range(start_iter, max_iter):
                 x_ = torch.clamp(x.cpu(), 0, 1)
                 img = np.transpose(tv.utils.make_grid(x_, nrow=nrow).numpy(), (1, 2, 0))
                 plt.imsave(os.path.join(sam_dir, 'samples_T_%.2f_%07i.png' % (st, it + 1)), img)
-                del(x, y, x_)
-                if use_gpu:
-                    torch.cuda.empty_cache()
 
             # Get bits per dim on test set
             bpd_test = np.array([])
@@ -321,6 +312,11 @@ for it in range(start_iter, max_iter):
             bpd_hist = np.concatenate([bpd_hist, bpd_append])
             np.savetxt(os.path.join(log_dir, 'bits_per_dim.csv'), bpd_hist, delimiter=',',
                        header='it,test_mean,test_std,test_err_mean', comments='')
+
+            # Clean up to make sure enough GPU memory is available for training
+            del (x, y, x_, nll)
+            if use_gpu:
+                torch.cuda.empty_cache()
 
 
 
