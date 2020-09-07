@@ -36,9 +36,7 @@ parser.add_argument('--tlimit', type=float, default=None,
 parser.add_argument('--worldsize', type=int, default=1,
                     help='Number of workers for distributed training')
 parser.add_argument('--rank', type=int, default=0,
-                    help='Rank within distributed worker group')
-parser.add_argument('--gpuid', type=int, default=0,
-                    help='Id of the GPU to use')
+                    help='Rank within distributed worker group')\
 
 
 args = parser.parse_args()
@@ -50,16 +48,16 @@ config = utils.get_config(args.config)
 
 # Get computing device
 use_gpu = not args.mode == 'cpu' and torch.cuda.is_available()
+device = torch.device('cuda' if use_gpu else 'cpu')
 if use_gpu:
     torch.backends.cudnn.benchmark = True
 if use_gpu and args.mode == 'distributed':
     distributed = True
     torch.distributed.init_process_group(backend='nccl', init_method='env://',
                                          world_size=args.worldsize, rank=args.rank)
-    device = torch.device('cuda')#torch.device('cuda:' + str(args.gpuid))
 else:
     distributed = False
-    device = torch.device('cuda' if use_gpu else 'cpu')
+
 
 
 # Set seed if needed
@@ -213,7 +211,7 @@ if args.resume:
 
 # Make model a distributed one if needed
 if distributed:
-    model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[0])#device_ids=[args.gpuid])
+    model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[0])
 
 
 # Train model
@@ -317,9 +315,8 @@ for it in range(start_iter, max_iter):
                 if use_gpu:
                     torch.cuda.empty_cache()
 
-        # Check whether time limit will be hit
-        if distributed:
-            torch.distributed.barrier()
+    # Check whether time limit will be hit
+    if (it + 2) % cp_iter == 0:
         if args.tlimit is not None:
             time_past = (time() - start_time) / 3600
             num_cp = (it + 1 - start_iter) / cp_iter
