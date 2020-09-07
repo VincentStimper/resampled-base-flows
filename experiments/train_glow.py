@@ -128,9 +128,10 @@ cp_dir = os.path.join(root, 'checkpoints')
 sam_dir = os.path.join(root, 'samples')
 log_dir = os.path.join(root, 'log')
 # Create dirs if not existent
-for dir in [cp_dir, sam_dir, log_dir]:
-    if not os.path.isdir(dir):
-        os.mkdir(dir)
+if args.rank == 0:
+    for dir in [cp_dir, sam_dir, log_dir]:
+        if not os.path.isdir(dir):
+            os.mkdir(dir)
 
 # Resume training if needed, otherwise initialize ActNorm layers
 start_iter = 0
