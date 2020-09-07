@@ -132,6 +132,12 @@ for dir in [cp_dir, sam_dir, log_dir]:
     if not os.path.isdir(dir):
         os.mkdir(dir)
 
+# Initialize ActNorm Layers
+init_loader = data.DataLoader(train_data, batch_size=batch_size, shuffle=True)
+with torch.no_grad():
+    x, y = next(iter(init_loader))
+    _ = model(x, y if class_cond else None)
+    del (x, y, init_loader)
 # Resume training if needed, otherwise initialize ActNorm layers
 start_iter = 0
 latest_cp = utils.get_latest_checkpoint(cp_dir, 'model')
@@ -139,12 +145,7 @@ if args.resume and latest_cp is not None:
     model.load(latest_cp)
     start_iter = int(latest_cp[-10:-3])
 else:
-    # Initialize ActNorm Layers
-    init_loader = data.DataLoader(train_data, batch_size=batch_size, shuffle=True)
-    with torch.no_grad():
-        x, y = next(iter(init_loader))
-        _ = model(x, y if class_cond else None)
-        del (x, y, init_loader)
+    pass
 
 
 # Move model on GPU if available
