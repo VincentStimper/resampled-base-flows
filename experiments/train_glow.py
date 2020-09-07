@@ -206,6 +206,8 @@ if args.resume:
         bpd_path = os.path.join(log_dir, 'bits_per_dim.csv')
         if os.path.exists(bpd_path):
             bpd_hist = np.loadtxt(bpd_path, delimiter=',', skiprows=1)
+            if bpd_hist.ndim == 1:
+                bpd_hist = bpd_hist[None, :]
             bpd_hist = bpd_hist[bpd_hist[:, 0] <= start_iter, :]
 
 # Make model a distributed one if needed
@@ -250,10 +252,6 @@ for it in range(start_iter, max_iter):
     # Do lr warmup if needed
     if lr_warmup:
         warmup_scheduler.step()
-
-    # Debugging
-    if distributed and (it + 1) % log_iter == 0:
-        model.module.save(os.path.join(cp_dir, 'model_' + str(args.rank) + '_%07i.pt' % (it + 1)))
 
     # Evaluation
     if args.rank == 0 and (it + 1) % log_iter == 0:
