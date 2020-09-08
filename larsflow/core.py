@@ -60,6 +60,8 @@ class Glow(nf.MultiscaleFlow):
         class_cond = config['class_cond']
         if class_cond:
             num_classes = config['num_classes']
+        else:
+            num_classes = None
 
         # Get transform
         if 'transform' in config:
@@ -90,7 +92,7 @@ class Glow(nf.MultiscaleFlow):
             else:
                 latent_shape = (input_shape[0] * 2 ** (L + 1), input_shape[1] // 2 ** L,
                                 input_shape[2] // 2 ** L)
-            q0 += [nf.distributions.ClassCondDiagGaussian(latent_shape, num_classes)]
+            q0 += [nf.distributions.GlowBase(latent_shape, num_classes)]
 
         # Construct flow model
         super().__init__(q0, flows, merges, transform, class_cond)
