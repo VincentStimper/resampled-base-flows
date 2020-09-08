@@ -51,7 +51,7 @@ use_gpu = not args.mode == 'cpu' and torch.cuda.is_available()
 device = torch.device('cuda' if use_gpu else 'cpu')
 if use_gpu:
     torch.backends.cudnn.benchmark = True
-if use_gpu and args.wordsize > 1 and args.mode == 'distributed':
+if use_gpu and args.worldsize > 1 and args.mode == 'distributed':
     distributed = True
     torch.distributed.init_process_group(backend='nccl', init_method='env://',
                                          world_size=args.worldsize, rank=args.rank)
