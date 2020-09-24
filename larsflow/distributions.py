@@ -23,7 +23,7 @@ class ResampledGaussian(nf.distributions.BaseDistribution):
         self.a = a
         self.T = T
         self.eps = eps
-        self.Z = None
+        self.register_buffer("Z", torch.tensor(-1.))
         if trainable:
             self.loc = nn.Parameter(torch.zeros(1, self.d))
             self.log_scale = nn.Parameter(torch.zeros(1, self.d))
@@ -40,7 +40,7 @@ class ResampledGaussian(nf.distributions.BaseDistribution):
         for i in range(self.T):
             eps_ = torch.randn((num_samples, self.d), dtype=self.loc.dtype, device=self.loc.device)
             acc = self.a(eps_)
-            if self.training or self.Z == None:
+            if self.training or self.Z < 0.:
                 Z_sum = Z_sum + torch.sum(acc).detach()
                 n = n + num_samples
             dec = torch.rand_like(acc) < acc
@@ -60,17 +60,19 @@ class ResampledGaussian(nf.distributions.BaseDistribution):
                       - torch.sum(self.log_scale, 1)\
                       - torch.sum(0.5 * torch.pow(eps, 2), 1)
         acc = self.a(eps)
-        if self.training or self.Z == None:
+        if self.training or self.Z < 0.:
             eps_ = torch.randn((num_samples, self.d), dtype=self.loc.dtype, device=self.loc.device)
             Z_batch = torch.mean(self.a(eps_))
             Z_ = (Z_sum + Z_batch.detach() * num_samples) / (n + num_samples)
-            if self.Z == None:
+            if self.Z < 0.:
                 self.Z = Z_
             else:
-                self.Z = ((1 - self.eps) * self.Z + self.eps * Z_).detach()
-            self.Z = Z_batch - Z_batch.detach() + self.Z
-        alpha = (1 - self.Z) ** (self.T - 1)
-        log_p = torch.log((1 - alpha) * acc[:, 0] / self.Z + alpha) + log_p_gauss
+                self.Z = (1 - self.eps) * self.Z + self.eps * Z_
+            Z = Z_batch - Z_batch.detach() + self.Z
+        else:
+            Z = self.Z
+        alpha = (1 - Z) ** (self.T - 1)
+        log_p = torch.log((1 - alpha) * acc[:, 0] / Z + alpha) + log_p_gauss
         return z, log_p
 
     def log_prob(self, z):
@@ -79,14 +81,16 @@ class ResampledGaussian(nf.distributions.BaseDistribution):
                       - torch.sum(self.log_scale, 1) \
                       - torch.sum(0.5 * torch.pow(eps, 2), 1)
         acc = self.a(eps)
-        if self.training or self.Z == None:
+        if self.training or self.Z < 0.:
             eps_ = torch.randn_like(z)
             Z_batch = torch.mean(self.a(eps_))
-            if self.Z == None:
-                self.Z = Z_batch
+            if self.Z < 0.:
+                self.Z = Z_batch.detach()
             else:
-                self.Z = ((1 - self.eps) * self.Z + self.eps * Z_batch).detach()
-                self.Z = Z_batch - Z_batch.detach() + self.Z
-        alpha = (1 - self.Z) ** (self.T - 1)
-        log_p = torch.log((1 - alpha) * acc[:, 0] / self.Z + alpha) + log_p_gauss
+                self.Z = (1 - self.eps) * self.Z + self.eps * Z_batch.detach()
+            Z = Z_batch - Z_batch.detach() + self.Z
+        else:
+            Z = self.Z
+        alpha = (1 - Z) ** (self.T - 1)
+        log_p = torch.log((1 - alpha) * acc[:, 0] / Z + alpha) + log_p_gauss
         return log_p
