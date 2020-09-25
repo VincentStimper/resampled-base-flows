@@ -134,7 +134,6 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
         if isinstance(group_dim, int):
             group_dim = [group_dim]
         self.group_dim = group_dim
-        self.group_sum_dim = list(range(1, len(self.group_dim) + 1))
         self.group_shape = []
         self.not_group_shape = []
         for i, s in enumerate(self.shape):
@@ -142,6 +141,7 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
                 self.group_shape += [s]
             else:
                 self.not_group_shape += [s]
+        self.not_group_sum_dim = list(range(1, len(self.not_group_shape) + 1))
         # Get permutation indizes to form groups
         self.perm = []
         for i in range(self.n_dim):
@@ -272,7 +272,7 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
             Z = Z.view(-1, *self.not_group_shape)
         alpha = (1 - Z) ** (self.T - 1)
         log_p_a = torch.sum(torch.log((1 - alpha) * acc / Z + alpha),
-                            dim=self.group_sum_dim)
+                            dim=self.not_group_sum_dim)
         if self.same_dist:
             log_p_a = log_p_a * self.not_group_prod
         log_p = log_p + log_p_a + log_p_gauss
