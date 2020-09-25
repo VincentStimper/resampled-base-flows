@@ -24,7 +24,7 @@ class ConvNet2d(nn.Module):
                                  padding=kernel_size[i] // 2))
             net.append(nn.LeakyReLU(leaky))
         net.append(nn.Flatten())
-        net.append(nn.Linear(output_units[0], output_units[0]))
+        net.append(nn.Linear(*output_units))
         self.net = nn.Sequential(*net)
 
     def forward(self, x):
