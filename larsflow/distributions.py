@@ -267,7 +267,7 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
         if self.class_cond:
             Z = y @ Z.view(self.num_classes, self.num_groups)
         if self.same_dist:
-            Z = Z.view(-1, *([1] * self.n_dim))
+            Z = Z.view(-1, *([1] * len(self.not_group_shape)))
         else:
             Z = Z.view(-1, *self.not_group_shape)
         alpha = (1 - Z) ** (self.T - 1)
