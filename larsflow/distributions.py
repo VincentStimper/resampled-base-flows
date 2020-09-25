@@ -134,6 +134,7 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
         if isinstance(group_dim, int):
             group_dim = [group_dim]
         self.group_dim = group_dim
+        self.group_sum_dim = list(range(1, len(self.group_dim) + 1))
         self.group_shape = []
         self.not_group_shape = []
         for i, s in enumerate(self.shape):
@@ -155,8 +156,9 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
         self.same_dist = same_dist
         if same_dist:
             self.num_groups = 1
+            self.not_group_prod = np.prod(self.not_group_shape)
         else:
-            self.num_groups = np.prod(self.group_shape)
+            self.num_groups = np.prod(self.not_group_shape)
         # Normalization constant
         if self.class_cond:
             self.register_buffer("Z", -torch.ones(self.num_classes
@@ -260,18 +262,18 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
             acc = acc.view(batch_size, -1)
         else:
             acc = torch.diagonal(acc, dim1=1, dim2=2)
-        acc = acc.view(batch_size, *self.not_group_shape,
-                       *([1] * len(self.group_dim)))
-        acc = acc.permute(*self.perm_inv).contiguous()
+        acc = acc.view(batch_size, *self.not_group_shape)
         # Get normalization constant
         if self.class_cond:
             Z = y @ Z.view(self.num_classes, self.num_groups)
         if self.same_dist:
             Z = Z.view(-1, *([1] * self.n_dim))
         else:
-            Z = Z.view(-1, *self.not_group_shape,
-                       *([1] * len(self.group_dim)))
-            Z = Z.permute(*self.perm_inv).contiguous()
+            Z = Z.view(-1, *self.not_group_shape)
         alpha = (1 - Z) ** (self.T - 1)
-        log_p = log_p + torch.log((1 - alpha) * acc[:, 0] / Z + alpha) + log_p_gauss
+        log_p_a = torch.sum(torch.log((1 - alpha) * acc / Z + alpha),
+                            dim=self.group_sum_dim)
+        if self.same_dist:
+            log_p_a = log_p_a * self.not_group_prod
+        log_p = log_p + log_p_a + log_p_gauss
         return log_p
