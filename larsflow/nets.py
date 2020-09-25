@@ -11,7 +11,7 @@ class ConvNet2d(nn.Module):
     """
 
     def __init__(self, channels, kernel_size, output_units, leaky=0.0,
-                 output_fn="sigmoid"):
+                 output_fn=None):
         """
         Constructor
         :param channels: List of channels of conv layers, first entry is in_channels
