@@ -220,14 +220,15 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
         return z, log_p
 
     def log_prob(self, z, y=None):
-        # Get batch size
+        # Get batch size, dtype, and device
         batch_size = z.size(0)
+        dtype = z.dtype
+        device = z.device
         # Perpare onehot encoding of class if needed
         if self.class_cond:
             if y.dim() == 1:
-                y_onehot = torch.zeros((len(y), self.num_classes),
-                                       dtype=self.transform.s.dtype,
-                                       device=self.transform.s.device)
+                y_onehot = torch.zeros((len(y), self.num_classes), dtype=dtype,
+                                       device=device)
                 y_onehot.scatter_(1, y[:, None], 1)
                 y = y_onehot
         # Reverse flows
@@ -247,8 +248,8 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
                       - torch.sum(0.5 * torch.pow(z, 2), dim=self.sum_dim)
         # Update normalization constant
         if self.training or torch.any(self.Z < 0.):
-            eps = torch.randn(batch_size, *self.group_shape, dtype=z.dtype,
-                              device=z.device)
+            eps = torch.randn(batch_size, *self.group_shape, dtype=dtype,
+                              device=device)
             acc_ = self.a(eps)
             Z_batch = torch.mean(acc_, dim=0)
             if torch.any(self.Z < 0.):
