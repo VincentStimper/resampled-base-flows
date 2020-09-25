@@ -168,10 +168,10 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
         if self.affine_shape is None:
             self.affine_transform = None
         elif self.class_cond:
-            self.affine_transform = flows.CCAffineConst(self.affine_shape,
-                                                        self.num_classes)
+            self.affine_transform = nf.flows.CCAffineConst(self.affine_shape,
+                                                           self.num_classes)
         else:
-            self.affine_transform = flows.AffineConstFlow(self.affine_shape)
+            self.affine_transform = nf.flows.AffineConstFlow(self.affine_shape)
 
     def forward(self, num_samples=1):
         t = 0
