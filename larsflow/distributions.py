@@ -222,6 +222,14 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
     def log_prob(self, z, y=None):
         # Get batch size
         batch_size = z.size(0)
+        # Perpare onehot encoding of class if needed
+        if self.class_cond:
+            if y.dim() == 1:
+                y_onehot = torch.zeros((len(y), self.num_classes),
+                                       dtype=self.transform.s.dtype,
+                                       device=self.transform.s.device)
+                y_onehot.scatter_(1, y[:, None], 1)
+                y = y_onehot
         # Reverse flows
         log_p = 0
         for i in range(len(self.flows) - 1, -1, -1):
