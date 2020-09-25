@@ -101,14 +101,16 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
     Resampled Gaussian factorized over second dimension,
     i.e. first non-batch dimension; can be class-conditional
     """
-    def __init__(self, shape, a, T, eps, flows=[], group_dim=0,
-                 same_dist=True, num_classes=None):
+    def __init__(self, shape, a, T, eps, affine_shape=None, flows=[],
+                 group_dim=0, same_dist=True, num_classes=None):
         """
         Constructor
         :param shape: Shape of the variables (after mapped through the flows)
         :param a: Function returning the acceptance probability
         :param T: Maximum number of rejections
         :param eps: Discount factor in exponential average of Z
+        :param affine_shape: Shape of the affine layer serving as mean and
+        standard deviation; if None, no affine transformation is applied
         :param flows: Flows to be applied after sampling from base distribution
         :param group_dim: Int or list of ints; Dimension(s) to be used for group
         formation; dimension after batch dim is 0
@@ -132,17 +134,44 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
         if isinstance(group_dim, int):
             group_dim = [group_dim]
         self.group_dim = group_dim
+        self.group_shape = []
+        self.not_group_shape = []
+        for i, s in enumerate(self.shape):
+            if i in self.group_dim:
+                self.group_shape += [s]
+            else:
+                self.not_group_shape += [s]
+        # Get permutation indizes to form groups
+        self.perm = []
+        for i in range(self.n_dim):
+            if i in self.group_dim:
+                self.perm = [i + 1] + self.perm
+            else:
+                self.perm = self.perm + [i + 1]
+        self.perm = [0] + self.perm
+        self.perm_inv = [0] * len(self.perm)
+        for i, p in enumerate(self.perm):
+            self.perm_inv[p] = i
+        self.same_dist = same_dist
         if same_dist:
             self.num_groups = 1
         else:
-            self.num_groups = np.prod([1 if i in self.group_dim else shape[i]
-                                       for i in range(self.n_dim)])
+            self.num_groups = np.prod(self.group_shape)
         # Normalization constant
         if self.class_cond:
             self.register_buffer("Z", -torch.ones(self.num_classes
                                                   * self.num_groups))
         else:
             self.register_buffer("Z", -torch.ones(self.num_groups))
+        # Affine transformation
+        self.affine_shape = affine_shape
+        if self.affine_shape is None:
+            self.affine_transform = None
+        elif self.class_cond:
+            self.affine_transform = flows.CCAffineConst(self.affine_shape,
+                                                        self.num_classes)
+        else:
+            self.affine_transform = flows.AffineConstFlow(self.affine_shape)
 
     def forward(self, num_samples=1):
         t = 0
@@ -189,18 +218,28 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
         return z, log_p
 
     def log_prob(self, z, y=None):
-        # Undo affine transform
-        if self.class_cond:
-            eps, log_p = self.affine_transform.inverse(z, y)
-        else:
-            eps, log_p = self.affine_transform.inverse(z)
+        # Get batch size
+        batch_size = z.size(0)
+        # Reverse flows
+        log_p = 0
+        for i in range(len(self.flows) - 1, -1, -1):
+            z, log_det = self.flows[i].inverse(z)
+            log_p = log_p + log_det
+        # Reverse affine transform
+        if self.affine_transform is not None:
+            if self.class_cond:
+                z, log_det = self.affine_transform.inverse(z, y)
+            else:
+                z, log_det = self.affine_transform.inverse(z)
+            log_p = log_p + log_det
         # Get Gaussian density
         log_p_gauss = - 0.5 * self.d * np.log(2 * np.pi) \
-                      - torch.sum(0.5 * torch.pow(eps, 2), dim=self.sum_dim)
-        # Get normalization constant
+                      - torch.sum(0.5 * torch.pow(z, 2), dim=self.sum_dim)
+        # Update normalization constant
         if self.training or torch.any(self.Z < 0.):
-            eps_ = torch.randn_like(z)
-            acc_ = self.a(self.group_transform(eps_))
+            eps = torch.randn(batch_size, *self.group_shape, dtype=z.dtype,
+                              device=z.device)
+            acc_ = self.a(eps)
             Z_batch = torch.mean(acc_, dim=0)
             if torch.any(self.Z < 0.):
                 self.Z = Z_batch.detach()
@@ -209,8 +248,30 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
             Z = Z_batch - Z_batch.detach() + self.Z
         else:
             Z = self.Z
-        # Get final density
-        acc = self.a(self.group_transform(eps))
+        # Get values of a
+        z = z.permute(*self.perm).contiguous()
+        acc = self.a(z.view(-1, *self.group_shape))
+        if self.class_cond:
+            acc = acc.view(batch_size, -1, self.num_classes, self.num_groups)
+            acc = torch.sum(acc * y[:, None, :, None], dim=2)
+        else:
+            acc = acc.view(batch_size, -1, self.num_groups)
+        if self.same_dist:
+            acc = acc.view(batch_size, -1)
+        else:
+            acc = torch.diagonal(acc, dim1=1, dim2=2)
+        acc = acc.view(batch_size, *self.not_group_shape,
+                       *([1] * len(self.group_dim)))
+        acc = acc.permute(*self.perm_inv).contiguous()
+        # Get normalization constant
+        if self.class_cond:
+            Z = y @ Z.view(self.num_classes, self.num_groups)
+        if self.same_dist:
+            Z = Z.view(-1, *([1] * self.n_dim))
+        else:
+            Z = Z.view(-1, *self.not_group_shape,
+                       *([1] * len(self.group_dim)))
+            Z = Z.permute(*self.perm_inv).contiguous()
         alpha = (1 - Z) ** (self.T - 1)
-        log_p = torch.log((1 - alpha) * acc[:, 0] / Z + alpha) + log_p_gauss
+        log_p = log_p + torch.log((1 - alpha) * acc[:, 0] / Z + alpha) + log_p_gauss
         return log_p
