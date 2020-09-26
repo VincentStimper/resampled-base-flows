@@ -204,7 +204,7 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
             # Z update
             if self.training or self.Z < 0.:
                 Z_sum = Z_sum + torch.sum(acc, dim=0).detach()
-                n = n + num_samples
+                n = n + num_samples * self.not_group_prod
             # Get relevant part of a
             if self.class_cond:
                 acc = acc.view(num_samples, -1, self.num_classes, self.num_groups)
