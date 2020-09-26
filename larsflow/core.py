@@ -94,7 +94,7 @@ class Glow(nf.MultiscaleFlow):
                                 input_shape[2] // 2 ** L)
             if config['base']['type'] == 'gauss_channel':
                 affine_shape = latent_shape[:1] + ((1,) * (len(latent_shape) - 1))
-                q0 += [nf.distributions.AffineGaussain(latent_shape, affine_shape,
+                q0 += [nf.distributions.AffineGaussian(latent_shape, affine_shape,
                                                        num_classes)]
                 #q0 += [nf.distributions.GlowBase(latent_shape, num_classes)]
             else:
