@@ -154,11 +154,11 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
         for i, p in enumerate(self.perm):
             self.perm_inv[p] = i
         self.same_dist = same_dist
+        self.not_group_prod = np.prod(self.not_group_shape)
         if same_dist:
             self.num_groups = 1
-            self.not_group_prod = np.prod(self.not_group_shape)
         else:
-            self.num_groups = np.prod(self.not_group_shape)
+            self.num_groups = self.not_group_prod
         # Normalization constant
         if self.class_cond:
             self.register_buffer("Z", -torch.ones(self.num_classes
@@ -213,7 +213,7 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
                 break
         # Update normalization constant
         if self.training or torch.any(self.Z < 0.):
-            eps = torch.randn(batch_size, *self.group_shape, dtype=dtype,
+            eps = torch.randn(num_samples, *self.group_shape, dtype=dtype,
                               device=device)
             acc_ = self.a(eps)
             Z_batch = torch.mean(acc_, dim=0)
