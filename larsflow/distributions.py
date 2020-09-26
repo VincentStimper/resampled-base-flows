@@ -233,9 +233,9 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
         eps += update_ * eps_
         # Update normalization constant
         if self.training or torch.any(self.Z < 0.):
-            eps = torch.randn(num_samples, *self.group_shape, dtype=dtype,
-                              device=device)
-            acc_ = self.a(eps)
+            eps_ = torch.randn(num_samples, *self.group_shape, dtype=dtype,
+                               device=device)
+            acc_ = self.a(eps_)
             Z_batch = torch.mean(acc_, dim=0)
             Z_ = (Z_sum + Z_batch.detach() * num_samples) / (n + num_samples)
             if torch.any(self.Z < 0.):
