@@ -6,9 +6,12 @@ dataset:
   path: dataset           # Path to dataset
 
 model:
-  transform:
-    type: logit
-    param: 0.05
+  base:                   # Base distributions of the flow model
+    type: gauss_channel   # Type of the base distributions
+    param: null           # Parameters to be provided
+  transform:              # Transform to be applied to the image
+    type: logit           # Type of the transformation
+    param: 0.05           # Parameters needed
   levels: 3               # Number of levels of the multiscale architecture
   blocks: 16              # Number of flow blocks per level
   hidden_channels: 256    # Number of hidden channels in the ConvNet of the coupling layers

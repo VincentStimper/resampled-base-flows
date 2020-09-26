@@ -92,7 +92,11 @@ class Glow(nf.MultiscaleFlow):
             else:
                 latent_shape = (input_shape[0] * 2 ** (L + 1), input_shape[1] // 2 ** L,
                                 input_shape[2] // 2 ** L)
-            q0 += [nf.distributions.GlowBase(latent_shape, num_classes)]
+            if config['base']['type'] == 'gauss_channel':
+                q0 += [nf.distributions.GlowBase(latent_shape, num_classes)]
+            else:
+                raise NotImplementedError('The base distribution ' + config['base']['type']
+                                          + ' is not implemented')
 
         # Construct flow model
         super().__init__(q0, flows, merges, transform, class_cond)
