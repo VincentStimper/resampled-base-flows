@@ -192,25 +192,45 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
         # Draw samples
         eps = torch.zeros(num_samples * self.not_group_prod, *self.group_shape,
                           dtype=dtype, device=device)
-        sampled = torch.zeros(num_samples * self.not_group_prod, 1, dtype=torch.bool,
+        sampled = torch.zeros(num_samples * self.not_group_prod, dtype=torch.bool,
                               device=device)
         n = 0
         Z_sum = 0
         for i in range(self.T):
             eps_ = torch.randn(num_samples * self.not_group_prod, *self.group_shape,
                                dtype=dtype, device=device)
+            # Get a
             acc = self.a(eps_)
+            # Z update
             if self.training or self.Z < 0.:
                 Z_sum = Z_sum + torch.sum(acc, dim=0).detach()
                 n = n + num_samples
+            # Get relevant part of a
+            if self.class_cond:
+                acc = acc.view(num_samples, -1, self.num_classes, self.num_groups)
+                acc = torch.sum(acc * y[:, None, :, None], dim=2)
+            else:
+                acc = acc.view(num_samples, -1, self.num_groups)
+            if self.same_dist:
+                acc = acc.view(num_samples, -1)
+            else:
+                acc = torch.diagonal(acc, dim1=1, dim2=2)
+            acc = acc.view(-1)
+            # Make decision about acceptance
             dec = torch.rand_like(acc) < acc
             update = torch.logical_and(torch.logical_not(sampled), dec)
             sampled = torch.logical_or(sampled, dec)
             update_ = update.type(dtype).view(num_samples * self.not_group_prod,
                                               *([1] * len(self.group_dim)))
+            # Update tensor with final samples
             eps += update_ * eps_
             if torch.all(sampled):
                 break
+        # Update all random variables which have not been sampled yet
+        update = torch.logical_not(sampled)
+        update_ = update.type(dtype).view(num_samples * self.not_group_prod,
+                                          *([1] * len(self.group_dim)))
+        eps += update_ * eps_
         # Update normalization constant
         if self.training or torch.any(self.Z < 0.):
             eps = torch.randn(num_samples, *self.group_shape, dtype=dtype,
