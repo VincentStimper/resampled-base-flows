@@ -154,7 +154,7 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
         for i, p in enumerate(self.perm):
             self.perm_inv[p] = i
         self.same_dist = same_dist
-        self.not_group_prod = np.prod(self.not_group_shape)
+        self.not_group_prod = np.prod(self.not_group_shape, dtype=np.int)
         if same_dist:
             self.num_groups = 1
         else:
