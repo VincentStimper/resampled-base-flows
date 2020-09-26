@@ -146,9 +146,9 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
         self.perm = []
         for i in range(self.n_dim):
             if i in self.group_dim:
-                self.perm = [i + 1] + self.perm
-            else:
                 self.perm = self.perm + [i + 1]
+            else:
+                self.perm = [i + 1] + self.perm
         self.perm = [0] + self.perm
         self.perm_inv = [0] * len(self.perm)
         for i, p in enumerate(self.perm):
