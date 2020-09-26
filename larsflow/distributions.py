@@ -175,48 +175,101 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
         else:
             self.affine_transform = nf.flows.AffineConstFlow(self.affine_shape)
 
-    def forward(self, num_samples=1):
-        t = 0
-        eps = torch.zeros(num_samples, self.d, dtype=self.loc.dtype, device=self.loc.device)
-        s = 0
+    def forward(self, num_samples=1, y=None):
+        # Get dtype and device
+        dtype = self.Z.dtype
+        device = self.Z.device
+        # Prepare one hot encoding or sample y if needed
+        if self.class_cond:
+            if y is not None:
+                num_samples = len(y)
+            else:
+                y = torch.randint(self.num_classes, (num_samples,), device=device)
+            if y.dim() == 1:
+                y_onehot = torch.zeros((len(y), self.num_classes), dtype=dtype, device=device)
+                y_onehot.scatter_(1, y[:, None], 1)
+                y = y_onehot
+        # Draw samples
+        eps = torch.zeros(num_samples * self.not_group_prod, *self.group_shape,
+                          dtype=dtype, device=device)
+        sampled = torch.zeros(num_samples * self.not_group_prod, 1, dtype=torch.bool,
+                              device=device)
         n = 0
         Z_sum = 0
         for i in range(self.T):
-            eps_ = torch.randn((num_samples, self.d), dtype=self.loc.dtype, device=self.loc.device)
+            eps_ = torch.randn(num_samples * self.not_group_prod, *self.group_shape,
+                               dtype=dtype, device=device)
             acc = self.a(eps_)
             if self.training or self.Z < 0.:
-                Z_sum = Z_sum + torch.sum(acc).detach()
+                Z_sum = Z_sum + torch.sum(acc, dim=0).detach()
                 n = n + num_samples
             dec = torch.rand_like(acc) < acc
-            for j, dec_ in enumerate(dec[:, 0]):
-                if dec_ or t == self.T - 1:
-                    eps[s, :] = eps_[j, :]
-                    s = s + 1
-                    t = 0
-                else:
-                    t = t + 1
-                if s == num_samples:
-                    break
-            if s == num_samples:
+            update = torch.logical_and(torch.logical_not(sampled), dec)
+            sampled = torch.logical_or(sampled, dec)
+            update_ = update.type(dtype).view(num_samples * self.not_group_prod,
+                                              *([1] * len(self.group_dim)))
+            eps += update_ * eps_
+            if torch.all(sampled):
                 break
-        z = self.loc + torch.exp(self.log_scale) * eps
-        log_p_gauss = - 0.5 * self.d * np.log(2 * np.pi) \
-                      - torch.sum(self.log_scale, 1)\
-                      - torch.sum(0.5 * torch.pow(eps, 2), 1)
-        acc = self.a(eps)
-        if self.training or self.Z < 0.:
-            eps_ = torch.randn((num_samples, self.d), dtype=self.loc.dtype, device=self.loc.device)
-            Z_batch = torch.mean(self.a(eps_))
+        # Update normalization constant
+        if self.training or torch.any(self.Z < 0.):
+            eps = torch.randn(batch_size, *self.group_shape, dtype=dtype,
+                              device=device)
+            acc_ = self.a(eps)
+            Z_batch = torch.mean(acc_, dim=0)
             Z_ = (Z_sum + Z_batch.detach() * num_samples) / (n + num_samples)
-            if self.Z < 0.:
+            if torch.any(self.Z < 0.):
                 self.Z = Z_
             else:
                 self.Z = (1 - self.eps) * self.Z + self.eps * Z_
             Z = Z_batch - Z_batch.detach() + self.Z
         else:
             Z = self.Z
+        # Get log p
+        # Get values of a
+        acc = self.a(eps)
+        if self.class_cond:
+            acc = acc.view(num_samples, -1, self.num_classes, self.num_groups)
+            acc = torch.sum(acc * y[:, None, :, None], dim=2)
+        else:
+            acc = acc.view(num_samples, -1, self.num_groups)
+        if self.same_dist:
+            acc = acc.view(num_samples, -1)
+        else:
+            acc = torch.diagonal(acc, dim1=1, dim2=2)
+        acc = acc.view(num_samples, *self.not_group_shape)
+        # Get normalization constant
+        if self.class_cond:
+            Z = y @ Z.view(self.num_classes, self.num_groups)
+        if self.same_dist:
+            Z = Z.view(-1, *([1] * len(self.not_group_shape)))
+        else:
+            Z = Z.view(-1, *self.not_group_shape)
         alpha = (1 - Z) ** (self.T - 1)
-        log_p = torch.log((1 - alpha) * acc[:, 0] / Z + alpha) + log_p_gauss
+        log_p_a = torch.sum(torch.log((1 - alpha) * acc / Z + alpha),
+                            dim=self.not_group_sum_dim)
+        if self.same_dist:
+            log_p_a = log_p_a * self.not_group_prod
+        # Get z
+        z = eps.view(num_samples, *self.not_group_shape, *self.group_shape)
+        z = z.permute(*self.perm_inv).contiguous()
+        # Get Gaussian density
+        log_p_gauss = - 0.5 * self.d * np.log(2 * np.pi) \
+                      - torch.sum(0.5 * torch.pow(z, 2), dim=self.sum_dim)
+        # Apply affine transform
+        log_p_flows = 0
+        if self.affine_transform is not None:
+            if self.class_cond:
+                z, log_det = self.affine_transform(z, y)
+            else:
+                z, log_det = self.affine_transform(z)
+            log_p_flows = log_p_flows - log_det
+        # Apply flows
+        for flow in self.flows:
+            z, log_det = flow(z)
+            log_p_flows = log_p_flows - log_det
+        # Get final density
+        log_p = log_p_gauss + log_p_a + log_p_flows
         return z, log_p
 
     def log_prob(self, z, y=None):
