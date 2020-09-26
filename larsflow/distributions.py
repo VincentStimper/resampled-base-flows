@@ -214,7 +214,7 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
             if self.same_dist:
                 acc = acc.view(num_samples, -1)
             else:
-                acc = torch.diagonal(acc, dim1=1, dim2=2)
+                acc = torch.diagonal(acc, dim1=1, dim2=2).contiguous()
             acc = acc.view(-1)
             # Make decision about acceptance
             dec = torch.rand_like(acc) < acc
