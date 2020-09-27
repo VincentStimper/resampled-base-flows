@@ -1,5 +1,8 @@
 import torch
+import numpy as np
 import normflow as nf
+
+from . import distributions
 
 class NormalizingFlow(nf.NormalizingFlow):
     """
@@ -97,6 +100,23 @@ class Glow(nf.MultiscaleFlow):
                 q0 += [nf.distributions.AffineGaussian(latent_shape, affine_shape,
                                                        num_classes)]
                 #q0 += [nf.distributions.GlowBase(latent_shape, num_classes)]
+            elif config['base']['type'] == 'resampled_channel':
+                affine_shape = latent_shape[:1] + ((1,) * (len(latent_shape) - 1))
+                layers = latent_shape[:1]
+                layers += (config['base']['type']['param']['a_hidden_units'],) \
+                          * config['base']['type']['param']['a_hidden_layers']
+                same_dist = config['base']['type']['param']['same_dist']
+                num_output = 1
+                if same_dist:
+                    num_output *= np.prod(latent_shape[1:])
+                if class_cond:
+                    num_output *= num_classes
+                layers += (num_output,)
+                a = nf.nets.MLP(layers, output_fn='sigmoid')
+                T = config['base']['type']['param']['T']
+                eps = config['base']['type']['param']['eps']
+                q0 += [distributions.FactorizedResampledGaussian(latent_shape, a, T, eps,
+                            affine_shape, same_dist=same_dist, num_classes=num_classes)]
             else:
                 raise NotImplementedError('The base distribution ' + config['base']['type']
                                           + ' is not implemented')
