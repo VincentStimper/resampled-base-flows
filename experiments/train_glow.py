@@ -155,7 +155,7 @@ max_iter = config['training']['max_iter']
 cp_iter = config['training']['cp_iter']
 log_iter = config['training']['log_iter']
 num_samples = config['training']['num_samples']
-sample_temperature = [1.0]
+sample_temperature = [None]
 if 'sample_temperature' in config['training']:
     if hasattr(config['training']['sample_temperature'], '__iter__'):
         sample_temperature += list(config['training']['sample_temperature'])
