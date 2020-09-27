@@ -103,9 +103,9 @@ class Glow(nf.MultiscaleFlow):
             elif config['base']['type'] == 'resampled_channel':
                 affine_shape = latent_shape[:1] + ((1,) * (len(latent_shape) - 1))
                 layers = latent_shape[:1]
-                layers += (config['base']['type']['params']['a_hidden_units'],) \
-                          * config['base']['type']['params']['a_hidden_layers']
-                same_dist = config['base']['type']['params']['same_dist']
+                layers += (config['base']['params']['a_hidden_units'],) \
+                          * config['base']['params']['a_hidden_layers']
+                same_dist = config['base']['params']['same_dist']
                 num_output = 1
                 if same_dist:
                     num_output *= np.prod(latent_shape[1:])
@@ -113,8 +113,8 @@ class Glow(nf.MultiscaleFlow):
                     num_output *= num_classes
                 layers += (num_output,)
                 a = nf.nets.MLP(layers, output_fn='sigmoid')
-                T = config['base']['type']['params']['T']
-                eps = config['base']['type']['params']['eps']
+                T = config['base']['params']['T']
+                eps = config['base']['params']['eps']
                 q0 += [distributions.FactorizedResampledGaussian(latent_shape, a, T, eps,
                             affine_shape, same_dist=same_dist, num_classes=num_classes)]
             else:
