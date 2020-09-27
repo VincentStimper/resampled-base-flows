@@ -168,13 +168,20 @@ bpd_hist = np.zeros((0, 4))
 # Initialize optimizer
 lr = config['training']['lr']
 weight_decay = config['training']['weight_decay']
+if 'q0_weight_decay' in config['training'] and\
+        config['training']['q0_weight_decay'] is not None:
+    q0_weight_decay = config['training']['q0_weight_decay']
+else:
+    q0_weight_decay = weight_decay
+params = [{'params': model.q0.parameters(), 'weight_decay': q0_weight_decay},
+          {'params': model.flows.parameters()}]
 optimizer_name = 'adam' if not 'optimizer' in config['training'] else config['training']['optimizer']
 if optimizer_name == 'adam':
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    optimizer = torch.optim.Adam(params, lr=lr, weight_decay=weight_decay)
 elif optimizer_name == 'lamb':
-    optimizer = optim.Lamb(model.parameters(), lr=lr, weight_decay=weight_decay)
+    optimizer = optim.Lamb(params, lr=lr, weight_decay=weight_decay)
 elif optimizer_name == 'novograd':
-    optimizer = optim.NovoGrad(model.parameters(), lr=lr, weight_decay=weight_decay)
+    optimizer = optim.NovoGrad(params, lr=lr, weight_decay=weight_decay)
 if args.precision == 'mixed':
     scaler = torch.cuda.amp.GradScaler()
 lr_warmup = 'warmup_iter' in config['training'] and config['training']['warmup_iter'] is not None

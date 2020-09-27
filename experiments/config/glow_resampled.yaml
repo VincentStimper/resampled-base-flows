@@ -8,7 +8,7 @@ dataset:
 model:
   base:                   # Base distributions of the flow model
     type: resampled_channel   # Type of the base distributions
-    param:                # Parameters to be provided
+    params:               # Parameters to be provided
       T: 100              # Truncation parameter for rejection sampling
       eps: 0.05           # Value to be used for exponential averaging
       a_hidden_layers: 2  # Hidden layers of the NN determining a
