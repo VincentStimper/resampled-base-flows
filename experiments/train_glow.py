@@ -294,7 +294,8 @@ for it in range(start_iter, max_iter):
                     x, _ = model.sample(num_samples, y=y, temperature=st)
                 x_ = torch.clamp(x.cpu(), 0, 1)
                 img = np.transpose(tv.utils.make_grid(x_, nrow=nrow).numpy(), (1, 2, 0))
-                plt.imsave(os.path.join(sam_dir, 'samples_T_%.2f_%07i.png' % (st, it + 1)), img)
+                plt.imsave(os.path.join(sam_dir, 'samples_T_%.2f_%07i.png'
+                                        % (1. if st is None else st, it + 1)), img)
 
             # Get bits per dim on test set
             bpd_test = np.array([])
