@@ -107,7 +107,7 @@ class Glow(nf.MultiscaleFlow):
                           * config['base']['params']['a_hidden_layers']
                 same_dist = config['base']['params']['same_dist']
                 num_output = 1
-                if same_dist:
+                if not same_dist:
                     num_output *= np.prod(latent_shape[1:])
                 if class_cond:
                     num_output *= num_classes
