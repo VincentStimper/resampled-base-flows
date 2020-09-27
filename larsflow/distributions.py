@@ -271,8 +271,6 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
         else:
             log_p_a = torch.sum(torch.log((1 - alpha) * acc / Z + alpha),
                                 dim=self.not_group_sum_dim)
-        if self.same_dist:
-            log_p_a = log_p_a * self.not_group_prod
         # Get z
         z = eps.view(num_samples, *self.not_group_shape, *self.group_shape)
         z = z.permute(*self.perm_inv).contiguous()
@@ -361,7 +359,5 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
         else:
             log_p_a = torch.sum(torch.log((1 - alpha) * acc / Z + alpha),
                                 dim=self.not_group_sum_dim)
-        if self.same_dist:
-            log_p_a = log_p_a * self.not_group_prod
         log_p = log_p + log_p_a + log_p_gauss
         return log_p
