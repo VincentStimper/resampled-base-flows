@@ -61,10 +61,18 @@ else:
 
 
 # Set seed if needed
+seed = None
 if 'seed' in config['training'] and config['training']['seed'] is not None:
-    torch.manual_seed(config['training']['seed'])
+    seed = config['training']['seed']
 elif distributed:
-    torch.manual_seed(0)
+    seed = 0
+if seed is not None:
+    torch.manual_seed(seed)
+    if distributed:
+        np.random.seed(seed)
+        ns = config['training']['max_iter'] // config['training']['cp_iter']
+        reset_seeds = np.random.randint(0, 1000000, ns)
+
 
 
 # Prepare training data
@@ -267,60 +275,71 @@ for it in range(start_iter, max_iter):
                    delimiter=',', header='it,loss,bpd', comments='')
 
     # Checkpoint, i.e. save model, generate samples, and get bits per dim on test set
-    if args.rank == 0 and (it + 1) % cp_iter == 0:
-        # Save checkpoint
+    if (it + 1) % cp_iter == 0:
+        if args.rank == 0:
+            # Save checkpoint
+            if distributed:
+                model.module.save(os.path.join(cp_dir, 'model_%07i.pt' % (it + 1)))
+            else:
+                model.save(os.path.join(cp_dir, 'model_%07i.pt' % (it + 1)))
+            torch.save(optimizer.state_dict(), os.path.join(cp_dir, 'optimizer.pt'))
+            if args.precision == 'mixed':
+                torch.save(scaler.state_dict(), os.path.join(cp_dir, 'scaler.pt'))
+            if lr_warmup:
+                torch.save(warmup_scheduler.state_dict(), os.path.join(cp_dir, 'warmup_scheduler.pt'))
+
+            # Set model to evaluation mode
+            model.eval()
+            with torch.no_grad():
+                # Generate samples
+                for st in sample_temperature:
+                    if class_cond:
+                        y = torch.arange(num_classes).repeat(num_samples).to(device)
+                        nrow = num_classes
+                    else:
+                        y = None
+                        nrow = 8
+                    if distributed:
+                        x, _ = model.module.sample(num_samples, y=y, temperature=st)
+                    else:
+                        x, _ = model.sample(num_samples, y=y, temperature=st)
+                    x_ = torch.clamp(x.cpu(), 0, 1)
+                    img = np.transpose(tv.utils.make_grid(x_, nrow=nrow).numpy(), (1, 2, 0))
+                    plt.imsave(os.path.join(sam_dir, 'samples_T_%.2f_%07i.png'
+                                            % (1. if st is None else st, it + 1)), img)
+
+                # Get bits per dim on test set
+                bpd_test = np.array([])
+                for x, y in iter(test_loader):
+                    # Move data to device
+                    x = x.to(device, non_blocking=True)
+                    y = y.to(device, non_blocking=True) if class_cond else None
+                    if args.precision == 'mixed':
+                        with torch.cuda.amp.autocast():
+                            nll = model(x, y, autocast=True if distributed else False)
+                    else:
+                        nll = model(x, y)
+                    bpd_test = np.concatenate([bpd_test,
+                                               nll.cpu().numpy() / np.log(2) / n_dims + 8])
+                n_not_nan = np.sum(np.logical_not(np.isnan(bpd_test)))
+                bpd_append = np.array([[it + 1, np.nanmean(bpd_test), np.nanstd(bpd_test),
+                                        np.nanstd(bpd_test) / np.sqrt(n_not_nan)]])
+                bpd_hist = np.concatenate([bpd_hist, bpd_append])
+                np.savetxt(os.path.join(log_dir, 'bits_per_dim.csv'), bpd_hist, delimiter=',',
+                           header='it,test_mean,test_std,test_err_mean', comments='')
+
+                # Clean up to make sure enough GPU memory is available for training
+                del (x, y, x_, nll)
+                if use_gpu:
+                    torch.cuda.empty_cache()
+
+            # Reset model to train mode
+            model.train()
+
+        # Reset seeds in distributed setting to ensure samples drawn in model during
+        # training are the same
         if distributed:
-            model.module.save(os.path.join(cp_dir, 'model_%07i.pt' % (it + 1)))
-        else:
-            model.save(os.path.join(cp_dir, 'model_%07i.pt' % (it + 1)))
-        torch.save(optimizer.state_dict(), os.path.join(cp_dir, 'optimizer.pt'))
-        if args.precision == 'mixed':
-            torch.save(scaler.state_dict(), os.path.join(cp_dir, 'scaler.pt'))
-        if lr_warmup:
-            torch.save(warmup_scheduler.state_dict(), os.path.join(cp_dir, 'warmup_scheduler.pt'))
-
-        with torch.no_grad():
-            # Generate samples
-            for st in sample_temperature:
-                if class_cond:
-                    y = torch.arange(num_classes).repeat(num_samples).to(device)
-                    nrow = num_classes
-                else:
-                    y = None
-                    nrow = 8
-                if distributed:
-                    x, _ = model.module.sample(num_samples, y=y, temperature=st)
-                else:
-                    x, _ = model.sample(num_samples, y=y, temperature=st)
-                x_ = torch.clamp(x.cpu(), 0, 1)
-                img = np.transpose(tv.utils.make_grid(x_, nrow=nrow).numpy(), (1, 2, 0))
-                plt.imsave(os.path.join(sam_dir, 'samples_T_%.2f_%07i.png'
-                                        % (1. if st is None else st, it + 1)), img)
-
-            # Get bits per dim on test set
-            bpd_test = np.array([])
-            for x, y in iter(test_loader):
-                # Move data to device
-                x = x.to(device, non_blocking=True)
-                y = y.to(device, non_blocking=True) if class_cond else None
-                if args.precision == 'mixed':
-                    with torch.cuda.amp.autocast():
-                        nll = model(x, y, autocast=True if distributed else False)
-                else:
-                    nll = model(x, y)
-                bpd_test = np.concatenate([bpd_test,
-                                           nll.cpu().numpy() / np.log(2) / n_dims + 8])
-            n_not_nan = np.sum(np.logical_not(np.isnan(bpd_test)))
-            bpd_append = np.array([[it + 1, np.nanmean(bpd_test), np.nanstd(bpd_test),
-                                    np.nanstd(bpd_test) / np.sqrt(n_not_nan)]])
-            bpd_hist = np.concatenate([bpd_hist, bpd_append])
-            np.savetxt(os.path.join(log_dir, 'bits_per_dim.csv'), bpd_hist, delimiter=',',
-                       header='it,test_mean,test_std,test_err_mean', comments='')
-
-            # Clean up to make sure enough GPU memory is available for training
-            del (x, y, x_, nll)
-            if use_gpu:
-                torch.cuda.empty_cache()
+            torch.manual_seed(reset_seeds[it // cp_iter])
 
     # Check whether time limit will be hit
     if it % cp_iter == 0:
