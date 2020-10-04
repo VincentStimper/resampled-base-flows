@@ -76,7 +76,8 @@ if seed is not None:
 
 
 # Prepare training data
-batch_size = config['training']['batch_size']
+# Batch size per processing unit
+batch_size = config['training']['batch_size'] // args.worldsize
 class_cond = config['model']['class_cond']
 
 # Load dataset
