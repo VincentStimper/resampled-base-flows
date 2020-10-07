@@ -272,7 +272,7 @@ for it in range(start_iter, max_iter):
 
     # Evaluation
     if args.rank == 0 and (it + 1) % log_iter == 0:
-        bpd_train = loss_hist[:, 1:] / np.log(2) / n_dims + 8
+        bpd_train = loss_hist[:, 1:2] / np.log(2) / n_dims + 8
         np.savetxt(os.path.join(log_dir, 'loss.csv'),
                    np.concatenate([loss_hist, bpd_train], 1),
                    delimiter=',', header='it,loss,bpd', comments='')
