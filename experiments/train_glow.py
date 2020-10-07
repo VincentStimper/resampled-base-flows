@@ -247,6 +247,9 @@ for it in range(start_iter, max_iter):
             loss = torch.mean(nll)
 
         scaler.scale(loss).backward()
+        scaler.unscale_(optimizer)
+        grad_norm = torch.nn.utils.clip_grad_norm(model.parameters(), 1000000)
+        print(grad_norm)
         scaler.step(optimizer)
         scaler.update()
     else:
