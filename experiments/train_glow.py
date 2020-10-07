@@ -249,7 +249,6 @@ for it in range(start_iter, max_iter):
         scaler.scale(loss).backward()
         scaler.unscale_(optimizer)
         grad_norm = torch.nn.utils.clip_grad_norm(model.parameters(), 1000000)
-        print(grad_norm)
         scaler.step(optimizer)
         scaler.update()
     else:
@@ -261,7 +260,7 @@ for it in range(start_iter, max_iter):
 
     # Log loss
     if args.rank == 0:
-        loss_append = np.array([[it + 1, loss.item()]])
+        loss_append = np.array([[it + 1, loss.item(), grad_norm.item()]])
         loss_hist = np.concatenate([loss_hist, loss_append])
 
     # Clear gradients
