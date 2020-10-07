@@ -171,7 +171,7 @@ if 'sample_temperature' in config['training']:
     else:
         sample_temperature += [config['training']['sample_temperature']]
 
-loss_hist = np.zeros((0, 2))
+loss_hist = np.zeros((0, 3))
 bpd_hist = np.zeros((0, 4))
 
 # Initialize optimizer
