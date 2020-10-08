@@ -247,7 +247,6 @@ for it in range(start_iter, max_iter):
             loss = torch.mean(nll)
 
         scaler.scale(loss).backward()
-        scaler.unscale_(optimizer)
         scaler.step(optimizer)
         scaler.update()
     else:
@@ -268,6 +267,9 @@ for it in range(start_iter, max_iter):
     # Do lr warmup if needed
     if lr_warmup:
         warmup_scheduler.step()
+
+    # Delete variables to prevent out of memory errors
+    del x, y, nll, loss
 
     # Evaluation
     if args.rank == 0 and (it + 1) % log_iter == 0:
@@ -331,7 +333,7 @@ for it in range(start_iter, max_iter):
                            header='it,test_mean,test_std,test_err_mean', comments='')
 
                 # Clean up to make sure enough GPU memory is available for training
-                del (x, y, x_, nll)
+                del x, y, x_, nll
                 if use_gpu:
                     torch.cuda.empty_cache()
 
