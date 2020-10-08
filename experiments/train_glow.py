@@ -171,7 +171,7 @@ if 'sample_temperature' in config['training']:
     else:
         sample_temperature += [config['training']['sample_temperature']]
 
-loss_hist = np.zeros((0, 3))
+loss_hist = np.zeros((0, 2))
 bpd_hist = np.zeros((0, 4))
 
 # Initialize optimizer
@@ -248,7 +248,6 @@ for it in range(start_iter, max_iter):
 
         scaler.scale(loss).backward()
         scaler.unscale_(optimizer)
-        grad_norm = torch.nn.utils.clip_grad_norm(model.parameters(), 100000)
         scaler.step(optimizer)
         scaler.update()
     else:
@@ -260,7 +259,7 @@ for it in range(start_iter, max_iter):
 
     # Log loss
     if args.rank == 0:
-        loss_append = np.array([[it + 1, loss.item(), grad_norm.item()]])
+        loss_append = np.array([[it + 1, loss.item()]])
         loss_hist = np.concatenate([loss_hist, loss_append])
 
     # Clear gradients
@@ -272,7 +271,7 @@ for it in range(start_iter, max_iter):
 
     # Evaluation
     if args.rank == 0 and (it + 1) % log_iter == 0:
-        bpd_train = loss_hist[:, 1:2] / np.log(2) / n_dims + 8
+        bpd_train = loss_hist[:, 1:] / np.log(2) / n_dims + 8
         np.savetxt(os.path.join(log_dir, 'loss.csv'),
                    np.concatenate([loss_hist, bpd_train], 1),
                    delimiter=',', header='it,loss,bpd', comments='')
