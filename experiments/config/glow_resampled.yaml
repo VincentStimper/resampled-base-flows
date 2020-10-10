@@ -30,6 +30,8 @@ training:
   warmup_iter: 1000       # Number of iterations of linearly warm up learning rate
   batch_size: 128         # Batch size for training and evalutation while training
   lr: 1.e-3               # Learning rate
+  lr_decay: 0.1           # Learning rate decay factor
+  lr_decay_iter: 1000     # Number of iterations after which lr decay should be applied
   weight_decay: 1.e-2     # Weight decay parameter
   q0_weight_decay: 1.e-4  # Weight decay of the base distribution
   cp_iter: 100            # Number of iterations at which to save a checkpoint and samples

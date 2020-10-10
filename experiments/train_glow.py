@@ -182,8 +182,9 @@ if 'q0_weight_decay' in config['training'] and\
     q0_weight_decay = config['training']['q0_weight_decay']
 else:
     q0_weight_decay = weight_decay
-params = [{'params': model.q0.parameters(), 'weight_decay': q0_weight_decay},
-          {'params': model.flows.parameters()}]
+#params = [{'params': model.q0.parameters(), 'weight_decay': q0_weight_decay},
+#          {'params': model.flows.parameters()}]
+params = model.parameters()
 optimizer_name = 'adam' if not 'optimizer' in config['training'] else config['training']['optimizer']
 if optimizer_name == 'adam':
     optimizer = torch.optim.Adam(params, lr=lr, weight_decay=weight_decay)
@@ -197,6 +198,10 @@ lr_warmup = 'warmup_iter' in config['training'] and config['training']['warmup_i
 if lr_warmup:
     warmup_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer,
                             lambda s: min(1., s / config['training']['warmup_iter']))
+lr_decay = 'lr_decay' in config['training'] and config['training']['lr_decay'] is not None
+if lr_decay:
+    lr_decay_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer,
+                                                                config['training']['lr_decay'])
 
 
 # Load optimizer, etc. if needed
@@ -212,6 +217,9 @@ if args.resume:
         warmup_scheduler_path = os.path.join(cp_dir, 'warmup_scheduler.pt')
         if os.path.exists(warmup_scheduler_path):
             warmup_scheduler.load_state_dict(torch.load(warmup_scheduler_path))
+    if lr_decay and start_iter > 0:
+        for _ in range(start_iter // config['training']['lr_decay_iter']):
+            lr_decay_scheduler.step()
     if args.rank == 0:
         loss_path = os.path.join(log_dir, 'loss.csv')
         if os.path.exists(loss_path):
@@ -267,6 +275,10 @@ for it in range(start_iter, max_iter):
     # Do lr warmup if needed
     if lr_warmup:
         warmup_scheduler.step()
+
+    # Do lr decay if needed
+    if lr_decay and (it + 1) % config['training']['lr_decay_iter'] == 0:
+        lr_decay_scheduler.step()
 
     # Delete variables to prevent out of memory errors
     del x, y, nll, loss
