@@ -191,7 +191,13 @@ if optimizer_name == 'adam':
 elif optimizer_name == 'adamax':
     optimizer = torch.optim.Adamax(params, lr=lr, weight_decay=weight_decay)
 elif optimizer_name == 'adabound':
-    optimizer = optim.AdaBound(params, lr=lr, weight_decay=weight_decay)
+    if 'gamma' in config['training'] and \
+            config['training']['gamma'] is not None:
+        gamma = config['training']['gamma']
+    else:
+        gamma = 1e-3
+    optimizer = optim.AdaBound(params, lr=lr, weight_decay=weight_decay,
+                               gamma=gamma)
 elif optimizer_name == 'lamb':
     optimizer = optim.Lamb(params, lr=lr, weight_decay=weight_decay)
 elif optimizer_name == 'novograd':
