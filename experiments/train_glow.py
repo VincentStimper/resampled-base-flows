@@ -188,6 +188,10 @@ params = model.parameters()
 optimizer_name = 'adam' if not 'optimizer' in config['training'] else config['training']['optimizer']
 if optimizer_name == 'adam':
     optimizer = torch.optim.Adam(params, lr=lr, weight_decay=weight_decay)
+elif optimizer_name == 'adamax':
+    optimizer = torch.optim.Adamax(params, lr=lr, weight_decay=weight_decay)
+elif optimizer_name == 'adabound':
+    optimizer = optim.AdaBound(params, lr=lr, weight_decay=weight_decay)
 elif optimizer_name == 'lamb':
     optimizer = optim.Lamb(params, lr=lr, weight_decay=weight_decay)
 elif optimizer_name == 'novograd':
