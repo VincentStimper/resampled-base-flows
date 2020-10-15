@@ -175,6 +175,7 @@ loss_hist = np.zeros((0, 2))
 bpd_hist = np.zeros((0, 4))
 
 # Initialize optimizer
+# Get parameters
 lr = config['training']['lr']
 weight_decay = config['training']['weight_decay']
 if 'q0_weight_decay' in config['training'] and\
@@ -184,29 +185,37 @@ else:
     q0_weight_decay = weight_decay
 #params = [{'params': model.q0.parameters(), 'weight_decay': q0_weight_decay},
 #          {'params': model.flows.parameters()}]
+momentum = 0.9 if not 'momentum' in config['training'] else config['training']['momentum']
+beta = 0.999 if not 'beta' in config['training'] else config['training']['beta']
+amsgrad = False if not 'amsgrad' in config['training'] else config['training']['amsgrad']
 params = model.parameters()
-optimizer_name = 'adam' if not 'optimizer' in config['training'] else config['training']['optimizer']
+# Get optimizer
+optimizer_name = 'adam' if not 'optimizer' in config['training'] \
+    else config['training']['optimizer']
 if optimizer_name == 'adam':
-    optimizer = torch.optim.Adam(params, lr=lr, weight_decay=weight_decay)
+    optimizer = torch.optim.Adam(params, lr=lr, betas=(momentum, beta),
+                                 weight_decay=weight_decay, amsgrad=amsgrad)
 elif optimizer_name == 'adamax':
-    optimizer = torch.optim.Adamax(params, lr=lr, weight_decay=weight_decay)
+    optimizer = torch.optim.Adamax(params, lr=lr, betas=(momentum, beta),
+                                   weight_decay=weight_decay)
 elif optimizer_name == 'adabound':
     if 'gamma' in config['training'] and \
             config['training']['gamma'] is not None:
         gamma = config['training']['gamma']
     else:
         gamma = 1e-3
-    optimizer = optim.AdaBound(params, lr=lr, weight_decay=weight_decay,
-                               gamma=gamma)
+    optimizer = optim.AdaBound(params, lr=lr, betas=(momentum, beta), gamma=gamma,
+                               weight_decay=weight_decay, amsgrad=amsgrad)
 elif optimizer_name == 'lamb':
-    optimizer = optim.Lamb(params, lr=lr, weight_decay=weight_decay)
-elif optimizer_name == 'novograd':
-    optimizer = optim.NovoGrad(params, lr=lr, weight_decay=weight_decay)
+    optimizer = optim.Lamb(params, lr=lr, betas=(momentum, beta),
+                           weight_decay=weight_decay)
 elif optimizer_name == 'sgd':
-    optimizer = torch.optim.SGD(params, lr=lr, momentum=0.9, weight_decay=weight_decay)
+    optimizer = torch.optim.SGD(params, lr=lr, momentum=momentum,
+                                weight_decay=weight_decay)
 if args.precision == 'mixed':
     scaler = torch.cuda.amp.GradScaler()
-lr_warmup = 'warmup_iter' in config['training'] and config['training']['warmup_iter'] is not None
+lr_warmup = 'warmup_iter' in config['training'] \
+            and config['training']['warmup_iter'] is not None
 if lr_warmup:
     warmup_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer,
                             lambda s: min(1., s / config['training']['warmup_iter']))
