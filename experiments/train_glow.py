@@ -202,6 +202,8 @@ elif optimizer_name == 'lamb':
     optimizer = optim.Lamb(params, lr=lr, weight_decay=weight_decay)
 elif optimizer_name == 'novograd':
     optimizer = optim.NovoGrad(params, lr=lr, weight_decay=weight_decay)
+elif optimizer_name == 'sgd':
+    optimizer = torch.optim.SGD(params, lr=lr, momentum=0.9, weight_decay=weight_decay)
 if args.precision == 'mixed':
     scaler = torch.cuda.amp.GradScaler()
 lr_warmup = 'warmup_iter' in config['training'] and config['training']['warmup_iter'] is not None
