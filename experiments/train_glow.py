@@ -437,7 +437,7 @@ for it in range(start_iter, max_iter):
                         torch.cuda.empty_cache()
 
                 # Save model
-                ema_model.module.save(os.path.join(cp_dir, 'ema_model_%07i.pt' % (it + 1)))
+                torch.save(ema_model.state_dict(), os.path.join(cp_dir, 'ema_model_%07i.pt' % (it + 1)))
 
                 # Reset model to train mode
                 ema_model.train()
