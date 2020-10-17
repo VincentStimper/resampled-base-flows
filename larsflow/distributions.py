@@ -102,7 +102,7 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
     i.e. first non-batch dimension; can be class-conditional
     """
     def __init__(self, shape, a, T, eps, affine_shape=None, flows=[],
-                 group_dim=0, same_dist=True, num_classes=None):
+                 group_dim=0, same_dist=True, num_classes=None, Z_samples=None):
         """
         Constructor
         :param shape: Shape of the variables (after mapped through the flows)
@@ -128,6 +128,7 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
         self.a = a
         self.T = T
         self.eps = eps
+        self.Z_samples = Z_samples
         self.flows = nn.ModuleList(flows)
         self.num_classes = num_classes
         self.class_cond = num_classes is not None
@@ -233,7 +234,8 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
         eps += update_ * eps_
         # Update normalization constant
         if self.training or torch.any(self.Z < 0.):
-            eps_ = torch.randn(num_samples, *self.group_shape, dtype=dtype,
+            Z_samples = num_samples if self.Z_samples is None else self.Z_samples
+            eps_ = torch.randn(Z_samples, *self.group_shape, dtype=dtype,
                                device=device)
             acc_ = self.a(eps_)
             Z_batch = torch.mean(acc_, dim=0)
@@ -322,7 +324,8 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
                       - torch.sum(0.5 * torch.pow(z, 2), dim=self.sum_dim)
         # Update normalization constant
         if self.training or torch.any(self.Z < 0.):
-            eps = torch.randn(batch_size, *self.group_shape, dtype=dtype,
+            Z_samples = batch_size if self.Z_samples is None else self.Z_samples
+            eps = torch.randn(Z_samples, *self.group_shape, dtype=dtype,
                               device=device)
             acc_ = self.a(eps)
             Z_batch = torch.mean(acc_, dim=0)
@@ -361,3 +364,21 @@ class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
                                 dim=self.not_group_sum_dim)
         log_p = log_p + log_p_a + log_p_gauss
         return log_p
+
+    def estimate_Z(self, num_samples, num_batches=1):
+        """
+        Estimate Z via Monte Carlo sampling
+        :param num_samples: Number of samples to draw per batch
+        :param num_batches: Number of batches to draw
+        """
+        with torch.no_grad():
+            self.Z = self.Z * 0.
+            # Get dtype and device
+            dtype = self.Z.dtype
+            device = self.Z.device
+            for i in range(num_batches):
+                eps = torch.randn(num_samples, *self.group_shape, dtype=dtype,
+                                  device=device)
+                acc_ = self.a(eps)
+                Z_batch = torch.mean(acc_, dim=0)
+                self.Z = self.Z + Z_batch.detach() / num_batches
