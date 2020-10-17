@@ -224,6 +224,17 @@ if lr_decay:
     lr_decay_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer,
                                                                 config['training']['lr_decay'])
 
+# Polyak (EMA) averaging
+ema = True if 'ema' in config['training'] and config['training']['ema'] is not None \
+    else False
+if args.rank == 0 and ema:
+    ema_beta = config['training']['ema']
+    ema_avg = lambda averaged_model_parameter, model_parameter, num_averaged: \
+        ema_beta * averaged_model_parameter + (1 - ema_beta) * model_parameter
+    ema_model = torch.optim.swa_utils.AveragedModel(model, avg_fn=ema_avg)
+    ema_bpd_hist = np.zeros((0, 4))
+
+
 
 # Load optimizer, etc. if needed
 if args.resume:
@@ -253,6 +264,16 @@ if args.resume:
             if bpd_hist.ndim == 1:
                 bpd_hist = bpd_hist[None, :]
             bpd_hist = bpd_hist[bpd_hist[:, 0] <= start_iter, :]
+        if ema:
+            ema_model_path = os.path.join(cp_dir, 'ema_model_' + str(start_iter) + '.pt')
+            if os.path.exists(ema_model_path):
+                ema_model.load_state_dict(torch.load(ema_model_path))
+            ema_bpd_path = os.path.join(log_dir, 'ema_bits_per_dim.csv')
+            if os.path.exists(bpd_path):
+                ema_bpd_hist = np.loadtxt(bpd_path, delimiter=',', skiprows=1)
+                if ema_bpd_hist.ndim == 1:
+                    ema_bpd_hist = bpd_hist[None, :]
+                ema_bpd_hist = ema_bpd_hist[ema_bpd_hist[:, 0] <= start_iter, :]
 
 # Make model a distributed one if needed
 if distributed:
@@ -285,10 +306,14 @@ for it in range(start_iter, max_iter):
             loss.backward()
             optimizer.step()
 
-    # Log loss
     if args.rank == 0:
+        # Log loss
         loss_append = np.array([[it + 1, loss.item()]])
         loss_hist = np.concatenate([loss_hist, loss_append])
+
+        # Perform ema
+        if ema:
+            ema_model.update_parameter(model)
 
     # Clear gradients
     nf.utils.clear_grad(model)
@@ -351,11 +376,7 @@ for it in range(start_iter, max_iter):
                     # Move data to device
                     x = x.to(device, non_blocking=True)
                     y = y.to(device, non_blocking=True) if class_cond else None
-                    if args.precision == 'mixed':
-                        with torch.cuda.amp.autocast():
-                            nll = model(x, y, autocast=True if distributed else False)
-                    else:
-                        nll = model(x, y)
+                    nll = model(x, y)
                     bpd_test = np.concatenate([bpd_test,
                                                nll.cpu().numpy() / np.log(2) / n_dims + 8])
                 n_not_nan = np.sum(np.logical_not(np.isnan(bpd_test)))
@@ -372,6 +393,50 @@ for it in range(start_iter, max_iter):
 
             # Reset model to train mode
             model.train()
+
+            # Evaluate ema model
+            if ema:
+                # Set model to evaluation mode
+                ema_model.eval()
+                with torch.no_grad():
+                    # Generate samples
+                    for st in sample_temperature:
+                        if class_cond:
+                            y = torch.arange(num_classes).repeat(num_samples).to(device)
+                            nrow = num_classes
+                        else:
+                            y = None
+                            nrow = 8
+                        x, _ = ema_model.sample(num_samples, y=y, temperature=st)
+                        x_ = torch.clamp(x.cpu(), 0, 1)
+                        img = np.transpose(tv.utils.make_grid(x_, nrow=nrow).numpy(), (1, 2, 0))
+                        plt.imsave(os.path.join(sam_dir, 'ema_samples_T_%.2f_%07i.png'
+                                                % (1. if st is None else st, it + 1)), img)
+
+                    # Get bits per dim on test set
+                    bpd_test = np.array([])
+                    for x, y in iter(test_loader):
+                        # Move data to device
+                        x = x.to(device, non_blocking=True)
+                        y = y.to(device, non_blocking=True) if class_cond else None
+                        nll = ema_model(x, y)
+                        bpd_test = np.concatenate([bpd_test,
+                                                   nll.cpu().numpy() / np.log(2) / n_dims + 8])
+                    n_not_nan = np.sum(np.logical_not(np.isnan(bpd_test)))
+                    bpd_append = np.array([[it + 1, np.nanmean(bpd_test), np.nanstd(bpd_test),
+                                            np.nanstd(bpd_test) / np.sqrt(n_not_nan)]])
+                    ema_bpd_hist = np.concatenate([ema_bpd_hist, bpd_append])
+                    np.savetxt(os.path.join(log_dir, 'ema_bits_per_dim.csv'), ema_bpd_hist,
+                               delimiter=',', header='it,test_mean,test_std,test_err_mean',
+                               comments='')
+
+                    # Clean up to make sure enough GPU memory is available for training
+                    del x, y, x_, nll
+                    if use_gpu:
+                        torch.cuda.empty_cache()
+
+                # Reset model to train mode
+                ema_model.train()
 
         # Reset seeds in distributed setting to ensure samples drawn in model during
         # training are the same
