@@ -402,9 +402,9 @@ for it in range(start_iter, max_iter):
 
                 # Estimate Z if needed
                 if 'resampled' in config['model']['base']['type']:
-                    num_s = 2 ** 14 if not 'Z_num_samples' in config['training'] \
+                    num_s = 2 ** 17 if not 'Z_num_samples' in config['training'] \
                         else config['training']['Z_num_samples']
-                    num_b = 2 ** 9 if not 'Z_num_batches' in config['training'] \
+                    num_b = 2 ** 10 if not 'Z_num_batches' in config['training'] \
                         else config['training']['Z_num_batches']
                     for q0 in ema_model.module.q0:
                         print(q0.Z)
