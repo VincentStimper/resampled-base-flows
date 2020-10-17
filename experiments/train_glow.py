@@ -408,7 +408,7 @@ for it in range(start_iter, max_iter):
                         else:
                             y = None
                             nrow = 8
-                        x, _ = ema_model.sample(num_samples, y=y, temperature=st)
+                        x, _ = ema_model.module.sample(num_samples, y=y, temperature=st)
                         x_ = torch.clamp(x.cpu(), 0, 1)
                         img = np.transpose(tv.utils.make_grid(x_, nrow=nrow).numpy(), (1, 2, 0))
                         plt.imsave(os.path.join(sam_dir, 'ema_samples_T_%.2f_%07i.png'
@@ -420,7 +420,7 @@ for it in range(start_iter, max_iter):
                         # Move data to device
                         x = x.to(device, non_blocking=True)
                         y = y.to(device, non_blocking=True) if class_cond else None
-                        nll = ema_model(x, y)
+                        nll = ema_model.module.forward(x, y)
                         bpd_test = np.concatenate([bpd_test,
                                                    nll.cpu().numpy() / np.log(2) / n_dims + 8])
                     n_not_nan = np.sum(np.logical_not(np.isnan(bpd_test)))
