@@ -314,7 +314,7 @@ for it in range(start_iter, max_iter):
 
         # Perform ema
         if ema:
-            ema_model.update_parameter(model)
+            ema_model.update_parameters(model)
 
     # Clear gradients
     nf.utils.clear_grad(model)
