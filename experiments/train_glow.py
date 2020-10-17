@@ -270,10 +270,10 @@ if args.resume:
             if os.path.exists(ema_model_path):
                 ema_model.load_state_dict(torch.load(ema_model_path))
             ema_bpd_path = os.path.join(log_dir, 'ema_bits_per_dim.csv')
-            if os.path.exists(bpd_path):
-                ema_bpd_hist = np.loadtxt(bpd_path, delimiter=',', skiprows=1)
+            if os.path.exists(ema_bpd_path):
+                ema_bpd_hist = np.loadtxt(ema_bpd_path, delimiter=',', skiprows=1)
                 if ema_bpd_hist.ndim == 1:
-                    ema_bpd_hist = bpd_hist[None, :]
+                    ema_bpd_hist = ema_bpd_hist[None, :]
                 ema_bpd_hist = ema_bpd_hist[ema_bpd_hist[:, 0] <= start_iter, :]
 
 # Make model a distributed one if needed
