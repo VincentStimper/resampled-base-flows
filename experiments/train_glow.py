@@ -3,6 +3,7 @@ import torch
 from torch.utils import data
 import torchvision as tv
 import torch_optimizer as optim
+from torch.optim.swa_utils import AveragedModel
 
 import numpy as np
 import normflow as nf
@@ -231,7 +232,7 @@ if args.rank == 0 and ema:
     ema_beta = config['training']['ema']
     ema_avg = lambda averaged_model_parameter, model_parameter, num_averaged: \
         ema_beta * averaged_model_parameter + (1 - ema_beta) * model_parameter
-    ema_model = torch.optim.swa_utils.AveragedModel(model, avg_fn=ema_avg)
+    ema_model = AveragedModel(model, avg_fn=ema_avg)
     ema_bpd_hist = np.zeros((0, 4))
 
 
