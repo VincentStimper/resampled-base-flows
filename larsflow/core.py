@@ -70,6 +70,8 @@ class Glow(nf.MultiscaleFlow):
         if 'transform' in config:
             if config['transform']['type'] == 'logit':
                 transform = nf.transforms.Logit(alpha=config['transform']['param'])
+            elif config['transform']['type'] == 'logit':
+                transform = nf.transforms.Shift()
             else:
                 raise NotImplementedError('The transform ' + config['transform']['type']
                                           + ' is not yet implemented')
