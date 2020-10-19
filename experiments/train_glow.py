@@ -96,7 +96,8 @@ if config['dataset']['name'] == 'cifar10':
         test_trans += [utils.ToDouble()]
     train_trans = [tv.transforms.RandomHorizontalFlip()] + test_trans
     # Init data loader
-    train_data = tv.datasets.CIFAR10(config['dataset']['path'], train=True, download=True,
+    train_data = tv.datasets.CIFAR10(config['dataset']['path'], train=True,
+                                     download=True, drop_last=True,
                                      transform=tv.transforms.Compose(train_trans))
     test_data = tv.datasets.CIFAR10(config['dataset']['path'], train=False, download=True,
                                     transform=tv.transforms.Compose(test_trans))
