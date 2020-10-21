@@ -4,6 +4,7 @@
 dataset:
   name: cifar10           # Dataset to train on, can be cifar10
   path: dataset           # Path to dataset
+  augment: True           # Flag if data augmentation shall be used
 
 model:
   base:                   # Base distributions of the flow model

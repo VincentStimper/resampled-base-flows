@@ -94,11 +94,18 @@ if config['dataset']['name'] == 'cifar10':
     test_trans = [tv.transforms.ToTensor()]
     if args.precision == 'double':
         test_trans += [utils.ToDouble()]
-    train_trans = [tv.transforms.RandomHorizontalFlip(),
-                   tv.transforms.ColorJitter(contrast=0.1),
-                   tv.transforms.Pad(6, padding_mode='edge'),
-                   tv.transforms.RandomAffine(5, translate=(0.1, 0.1), resample=3),
-                   tv.transforms.CenterCrop(32)] + test_trans
+    # Add transformations for data augmentation if requested
+    if 'augment' in config['dataset'] and config['dataset']['augment']:
+        aug_trans = [tv.transforms.RandomHorizontalFlip(),
+                     tv.transforms.ColorJitter(contrast=0.1),
+                     tv.transforms.Pad(6, padding_mode='edge'),
+                     tv.transforms.RandomAffine(5, translate=(0.1, 0.1), resample=3),
+                     tv.transforms.CenterCrop(32)]
+    else:
+        aug_trans = []
+    train_trans = aug_trans + test_trans
+    num_worker = 4 if 'num_worker' not in config['dataset'] \
+        else config['dataset']['num_worker']
     # Init data loader
     train_data = tv.datasets.CIFAR10(config['dataset']['path'], train=True, download=True,
                                      transform=tv.transforms.Compose(train_trans))
@@ -110,14 +117,16 @@ if config['dataset']['name'] == 'cifar10':
                                                             num_replicas=args.worldsize,
                                                             rank=args.rank)
         train_loader = data.DataLoader(dataset=train_data, batch_size=batch_size,
-                                       shuffle=False, num_workers=4, pin_memory=True,
-                                       sampler=train_sampler, drop_last=True)
+                                       shuffle=False, num_workers=num_worker,
+                                       pin_memory=True, sampler=train_sampler,
+                                       drop_last=True)
     else:
         train_loader = data.DataLoader(train_data, batch_size=batch_size, drop_last=True,
-                                       shuffle=True, num_workers=4, pin_memory=True)
+                                       shuffle=True, num_workers=num_worker,
+                                       pin_memory=True)
 
     test_loader = data.DataLoader(test_data, batch_size=batch_size,
-                                  shuffle=True, num_workers=4, pin_memory=True)
+                                  shuffle=True, num_workers=num_worker, pin_memory=True)
 else:
     raise NotImplementedError('The dataset ' + config['dataset']['name']
                               + 'is not implemented.')
