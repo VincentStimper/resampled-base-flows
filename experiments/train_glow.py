@@ -95,7 +95,10 @@ if config['dataset']['name'] == 'cifar10':
     if args.precision == 'double':
         test_trans += [utils.ToDouble()]
     train_trans = [tv.transforms.RandomHorizontalFlip(),
-                   tv.transforms.RandomAffine(0, translate=(0.1, 0.1))] + test_trans
+                   tv.transforms.ColorJitter(contrast=0.1),
+                   tv.transforms.Pad(6, padding_mode='edge'),
+                   tv.transforms.RandomAffine(5, translate=(0.1, 0.1), resample=3),
+                   tv.transforms.CenterCrop(32)] + test_trans
     # Init data loader
     train_data = tv.datasets.CIFAR10(config['dataset']['path'], train=True, download=True,
                                      transform=tv.transforms.Compose(train_trans))
