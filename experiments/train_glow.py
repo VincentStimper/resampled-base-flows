@@ -96,11 +96,23 @@ if config['dataset']['name'] == 'cifar10':
         test_trans += [utils.ToDouble()]
     # Add transformations for data augmentation if requested
     if 'augment' in config['dataset'] and config['dataset']['augment']:
-        aug_trans = [tv.transforms.RandomHorizontalFlip(),
-                     tv.transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1),
-                     tv.transforms.Pad(4, padding_mode='edge'),
-                     tv.transforms.RandomAffine(0, translate=(0.1, 0.1)),
-                     tv.transforms.CenterCrop(32)]
+        if not 'am' in config['dataset']:
+            aug_trans = [tv.transforms.RandomHorizontalFlip(),
+                         tv.transforms.ColorJitter(contrast=0.1),
+                         tv.transforms.Pad(6, padding_mode='edge'),
+                         tv.transforms.RandomAffine(5, translate=(0.1, 0.1), resample=3),
+                         tv.transforms.CenterCrop(32)]
+        elif config['dataset']['am'] == 1:
+            aug_trans = [tv.transforms.RandomHorizontalFlip(),
+                         tv.transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1),
+                         tv.transforms.Pad(4, padding_mode='edge'),
+                         tv.transforms.RandomAffine(0, translate=(0.1, 0.1)),
+                         tv.transforms.CenterCrop(32)]
+        else:
+            aug_trans = [tv.transforms.RandomHorizontalFlip(),
+                         tv.transforms.Pad(4, padding_mode='edge'),
+                         tv.transforms.RandomAffine(0, translate=(0.1, 0.1)),
+                         tv.transforms.CenterCrop(32)]
     else:
         aug_trans = []
     train_trans = aug_trans + test_trans
