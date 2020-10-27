@@ -10,32 +10,34 @@ system:                             # Properties of molecular system
   name: AlanineDipeptideVacuum      # String, specifying the system from which states shall be generated
   constraints: False                # Flag, true if constraints shall be used
   temperature: 1000                 # Double, temperature of the system
-  energy_cut: 1.e+2                 # Double, energy level at which regularization shall be applied
+  energy_cut: 1.e+8                 # Double, energy level at which regularization shall be applied
   energy_max: 1.e+20                # Double, maximum level at which energies will be clamped
-  platform: CUDA                    # String, specifies the platform used for force and energy calculations
+  platform: Reference               # String, specifies the platform used for force and energy calculations
   precision: double                 # String, specifies the precision used for force and energy calculations
   parallel_energy: True             # Bool, flag whether to process the batch in parallel to get energy
-  n_threads: null                   # Int, number of threads to be used, number of cores if null
+  n_threads: 4                      # Int, number of threads to be used, number of cores if null
 
 
 model:                              # Properties of the model
 
-  base: 'gaussian'                  # Base distribution, can be 'gaussian' or 'resampled'
+  base:                             # Base distribution
+    type: resampled                 # Type of the base dist, can be 'gaussian' or 'resampled'
+    learn_mean_var: True            # Flag, if true, mean and variance of the dist is learned
+    params:
+      T: 100                        # Truncation parameter for rejection sampling
+      eps: 0.05                     # Value to be used for exponential averaging
+      a_hidden_layers: 2            # Hidden layers of the NN determining a
+      a_hidden_units: 512           # Hidden units in the hidden layers of the NN determining a
+  transform: False                  # Flag, if true, coordinate transform is added as last flow layer
   latent_size: 60                   # Int, number of features in the latent space
-  actnorm: True                     # Bool, flag whether to include an ActNorm layer after each
-                                    # Real NVP block
-
-  rnvp:                             # Properties of the Real NVP architecture
-    include: True                   # Bool, flag if unset of true RNVP blocks are included in the model
-    blocks: 5                       # Int, number of Real NVP blocks, consisting of two alternating
-                                    # Real NVP layers each, to use
-    hidden_layers: 3                # Int, number of hidden layers
-    hidden_units: 128               # Int, number of hidden units
-    output_fn: null                 # String, function to be applied to the output of NN for scale in
-                                    # RNVP, either None, sigmoid, relu, or tanh
-    output_scale: 3                 # Double, rescales outputs of NN for scale in RNVP if output_fn is
-                                    # specified, i.e. scale * output_fn(out / scale)
-    init_zeros: True               # Bool, flag whether to initialize last layer of NNs with zeros
+  blocks: 16                        # Int, number of Real NVP blocks, consisting of an ActNorm layer
+                                    # if specified, a permutation, and a affine coupling layer
+  actnorm: True                     # Bool, flag whether to include an ActNorm layers
+  permutation: swap                 # String, can be swap, shuffle, or affine
+  coupling: affine                  # String, can be affine or additive
+  hidden_layers: 2                  # Int, number of hidden layers of the NN in the coupling layers
+  hidden_units: 128                 # Int, number of hidden units of the NN in the coupling layers
+  init_zeros: True                  # Bool, flag whether to initialize last layer of NNs with zeros
 
 
 train:                              # Properties of the training procedure
