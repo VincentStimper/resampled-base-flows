@@ -43,7 +43,7 @@ model:                              # Properties of the model
   init_zeros: True                  # Bool, flag whether to initialize last layer of NNs with zeros
 
 
-train:                              # Properties of the training procedure
+training:                           # Properties of the training procedure
   max_iter: 15000                   # Int, maximum number of iteration
   batch_size: 256                   # Int, batch size used during training
   angle_loss: False                 # Flag, true if angle loss shall be included
