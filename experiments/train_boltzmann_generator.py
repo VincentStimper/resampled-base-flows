@@ -42,7 +42,10 @@ model = lf.BoltzmannGenerator(config)
 use_gpu = not args.mode == 'cpu' and torch.cuda.is_available()
 device = torch.device('cuda' if use_gpu else 'cpu')
 model = model.to(device)
-model = model.double()
+if args.precision == 'double':
+    model = model.double()
+else:
+    model = model.float()
 
 
 # Load data
