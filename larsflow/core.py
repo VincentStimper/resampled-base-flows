@@ -278,7 +278,7 @@ class BoltzmannGenerator(NormalizingFlow):
             a_hl = config['model']['base']['params']['a_hidden_layers']
             a_hu = config['model']['base']['params']['a_hidden_units']
             a = nf.nets.MLP([latent_size] + a_hl * [a_hu] + [1], output_fn="sigmoid")
-            q0 = nf.distributions.ResampledGaussian(latent_size, a, T, eps,
+            q0 = distributions.ResampledGaussian(latent_size, a, T, eps,
                                 trainable=config['model']['base']['learn_mean_var'])
         else:
             q0 = nf.distributions.DiagGaussian(latent_size,
