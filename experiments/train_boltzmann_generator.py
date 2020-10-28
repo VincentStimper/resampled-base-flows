@@ -88,6 +88,11 @@ loss_hist = np.zeros((0, 2))
 
 optimizer = torch.optim.Adam(model.parameters(), lr=config['training']['learning_rate'],
                              weight_decay=config['training']['weight_decay'])
+lr_warmup = 'warmup_iter' in config['training'] \
+            and config['training']['warmup_iter'] is not None
+if lr_warmup:
+    warmup_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer,
+                            lambda s: min(1., s / config['training']['warmup_iter']))
 lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizer,
                                                       gamma=config['training']['rate_decay'])
 
@@ -100,6 +105,9 @@ if args.resume:
         optimizer_path = os.path.join(cp_dir, 'optimizer.pt')
         if os.path.exists(optimizer_path):
             optimizer.load_state_dict(torch.load(optimizer_path))
+        warmup_scheduler_path = os.path.join(cp_dir, 'warmup_scheduler.pt')
+        if os.path.exists(warmup_scheduler_path):
+            warmup_scheduler.load_state_dict(torch.load(warmup_scheduler_path))
         loss_path = os.path.join(log_dir, 'loss.csv')
         if os.path.exists(loss_path):
             loss_hist = np.loadtxt(loss_path)
@@ -134,6 +142,14 @@ for it in range(start_iter, max_iter):
     # Clear gradients
     nf.utils.clear_grad(model)
 
+    # Do lr warmup if needed
+    if lr_warmup and it <= config['training']['warmup_iter']:
+        warmup_scheduler.step()
+
+    # Update lr scheduler
+    if (it + 1) % config['training']['decay_iter'] == 0:
+        lr_scheduler.step()
+
     # Save loss
     if (it + 1) % log_iter == 0:
         np.savetxt(os.path.join(log_dir, 'loss.csv'), loss_hist,
@@ -144,10 +160,9 @@ for it in range(start_iter, max_iter):
         model.save(os.path.join(cp_dir, 'model_%07i.pt' % (it + 1)))
         torch.save(optimizer.state_dict(),
                    os.path.join(cp_dir, 'optimizer.pt'))
+        if lr_warmup:
+            torch.save(warmup_scheduler.state_dict(),
+                       os.path.join(cp_dir, 'warmup_scheduler.pt'))
         if args.tlimit is not None and (time() - start_time) / 3600 > args.tlimit:
             break
-
-    # Update lr scheduler
-    if (it + 1) % config['training']['decay_iter'] == 0:
-        lr_scheduler.step()
     
