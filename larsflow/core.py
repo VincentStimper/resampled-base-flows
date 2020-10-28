@@ -219,23 +219,22 @@ class BoltzmannGenerator(NormalizingFlow):
             raise NotImplementedError('The system ' + config['system']['name']
                                       + ' has not been implemented.')
 
-        # Load data for transform if specified
-        if config['data_path'] is not None:
-            # Load the alanine dipeptide trajectory
-            traj = mdtraj.load(config['data_path'])
-            traj.center_coordinates()
+        # Load data for transform
+        # Load the alanine dipeptide trajectory
+        traj = mdtraj.load(config['data_path']['transform'])
+        traj.center_coordinates()
 
-            # superpose on the backbone
-            ind = traj.top.select("backbone")
+        # superpose on the backbone
+        ind = traj.top.select("backbone")
 
-            traj.superpose(traj, 0, atom_indices=ind, ref_atom_indices=ind)
+        traj.superpose(traj, 0, atom_indices=ind, ref_atom_indices=ind)
 
-            # Gather the training data into a pytorch Tensor with the right shape
-            training_data = traj.xyz
-            n_atoms = training_data.shape[1]
-            n_dim = n_atoms * 3
-            training_data_npy = training_data.reshape(-1, n_dim)
-            training_data = torch.from_numpy(training_data_npy.astype("float64"))
+        # Gather the training data into a pytorch Tensor with the right shape
+        training_data = traj.xyz
+        n_atoms = training_data.shape[1]
+        n_dim = n_atoms * 3
+        training_data_npy = training_data.reshape(-1, n_dim)
+        training_data = torch.from_numpy(training_data_npy.astype("float64"))
 
         # Set up model
         # Define flows

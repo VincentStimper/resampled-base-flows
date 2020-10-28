@@ -3,7 +3,8 @@
 
 
 data_path:
-  train: null                       # String, path to the data used for training and to initialize transform
+  transform: null                   # String, path to the data used to initialize transform
+  train: null                       # String, path to the data used for training
   test: null                        # String, path to the data used for evaluation
 
 
