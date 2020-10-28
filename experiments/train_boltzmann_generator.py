@@ -71,10 +71,10 @@ else:
     test_data = test_data.float()
 
 # Train model
-max_iter = config['train']['max_iter']
+max_iter = config['training']['max_iter']
 n_data = len(training_data)
-log_iter = config['train']['log_iter']
-checkpoint_iter = config['train']['checkpoint_iter']
+log_iter = config['training']['log_iter']
+checkpoint_iter = config['training']['checkpoint_iter']
 root = config['training']['save_root']
 cp_dir = os.path.join(root, 'checkpoints')
 plot_dir = os.path.join(root, 'plots')
@@ -86,10 +86,10 @@ for dir in [cp_dir, plot_dir, log_dir]:
 
 loss_hist = np.zeros((0, 2))
 
-optimizer = torch.optim.Adam(model.parameters(), lr=config['train']['learning_rate'],
-                             weight_decay=config['train']['weight_decay'])
+optimizer = torch.optim.Adam(model.parameters(), lr=config['training']['learning_rate'],
+                             weight_decay=config['training']['weight_decay'])
 lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizer,
-                                                      gamma=config['train']['rate_decay'])
+                                                      gamma=config['training']['rate_decay'])
 
 # Resume training if needed
 start_iter = 0
@@ -106,13 +106,13 @@ if args.resume:
             loss_hist = loss_hist[loss_hist[:, 0] <= start_iter, :]
         start_iter = int(latest_cp[-10:-3])
 if start_iter > 0:
-    for _ in range(start_iter // config['train']['decay_iter']):
+    for _ in range(start_iter // config['training']['decay_iter']):
         lr_scheduler.step()
 
 # Start training
 start_time = time()
 
-batch_size = config['train']['batch_size']
+batch_size = config['training']['batch_size']
 
 for it in range(start_iter, max_iter):
     # Get batch from dataset
@@ -147,6 +147,6 @@ for it in range(start_iter, max_iter):
             break
 
     # Update lr scheduler
-    if (it + 1) % config['train']['decay_iter'] == 0:
+    if (it + 1) % config['training']['decay_iter'] == 0:
         lr_scheduler.step()
     
