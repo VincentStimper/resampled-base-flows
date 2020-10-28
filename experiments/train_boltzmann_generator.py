@@ -137,7 +137,7 @@ for it in range(start_iter, max_iter):
     # Save loss
     if (it + 1) % log_iter == 0:
         np.savetxt(os.path.join(log_dir, 'loss.csv'), loss_hist,
-                   delimiter=',', header='it,loss,bpd', comments='')
+                   delimiter=',', header='it,loss', comments='')
 
     # Save checkpoint
     if (it + 1) % checkpoint_iter == 0:
