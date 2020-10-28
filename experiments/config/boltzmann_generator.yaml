@@ -51,5 +51,6 @@ train:                              # Properties of the training procedure
   decay_iter: 5000                  # Int, number of iteration after which the learning rate should be
                                     # decreased
   weight_decay: 1.e-5               # Double, regularization parameter
-  checkpoint_iter: 100              # Int, number of iterations after which checkpoint is saved
-  checkpoint_root: ./               # String, path to checkpoint directory
+  log_iter: 200                     # Int, number of iterations after which loss is saved
+  checkpoint_iter: 1000             # Int, number of iterations after which checkpoint is saved
+  save_root: ./                     # String, path to checkpoint directory

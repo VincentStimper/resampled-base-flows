@@ -70,8 +70,16 @@ else:
 # Train model
 max_iter = config['train']['max_iter']
 n_data = len(training_data)
-checkpoint_step = config['train']['checkpoint_iter']
-checkpoint_root = config['train']['checkpoint_root']
+log_iter = config['train']['log_iter']
+checkpoint_iter = config['train']['checkpoint_iter']
+root = config['training']['save_root']
+cp_dir = os.path.join(root, 'checkpoints')
+plot_dir = os.path.join(root, 'plots')
+log_dir = os.path.join(root, 'log')
+# Create dirs if not existent
+for dir in [cp_dir, plot_dir, log_dir]:
+    if not os.path.isdir(dir):
+        os.mkdir(dir)
 
 loss_hist = np.zeros((0, 2))
 
@@ -83,14 +91,13 @@ lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizer,
 # Resume training if needed
 start_iter = 0
 if args.resume:
-    latest_cp = bg.utils.get_latest_checkpoint(os.path.join(checkpoint_root, 'checkpoints'),
-                                               'model')
+    latest_cp = bg.utils.get_latest_checkpoint(cp_dir, 'model')
     if latest_cp is not None:
         model.load(latest_cp)
-        optimizer_path = os.path.join(checkpoint_root, 'checkpoints/optimizer.pt')
+        optimizer_path = os.path.join(cp_dir, 'optimizer.pt')
         if os.path.exists(optimizer_path):
             optimizer.load_state_dict(torch.load(optimizer_path))
-        loss_path = os.path.join(checkpoint_root, 'log/loss.csv')
+        loss_path = os.path.join(log_dir, 'loss.csv')
         if os.path.exists(loss_path):
             loss_hist = np.loadtxt(loss_path)
             loss_hist = loss_hist[loss_hist[:, 0] <= start_iter, :]
@@ -124,12 +131,15 @@ for it in range(start_iter, max_iter):
     # Clear gradients
     nf.utils.clear_grad(model)
 
+    # Save loss
+    if (it + 1) % log_iter == 0:
+        np.savetxt(os.path.join(log_dir, 'loss.csv'), loss_hist)
+
     # Save checkpoint
-    if (it + 1) % checkpoint_step == 0:
-        model.save(os.path.join(checkpoint_root, 'checkpoints/model_%07i.pt' % (it + 1)))
+    if (it + 1) % checkpoint_iter == 0:
+        model.save(os.path.join(cp_dir, 'model_%07i.pt' % (it + 1)))
         torch.save(optimizer.state_dict(),
-                   os.path.join(checkpoint_root, 'checkpoints/optimizer.pt'))
-        np.savetxt(os.path.join(checkpoint_root, 'log/loss.csv'), loss_hist)
+                   os.path.join(cp_dir, 'optimizer.pt'))
         if args.tlimit is not None and (time() - start_time) / 3600 > args.tlimit:
             break
 
