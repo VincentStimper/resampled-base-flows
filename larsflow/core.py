@@ -288,8 +288,9 @@ class BoltzmannGenerator(NormalizingFlow):
         flows = []
         for i in range(blocks):
             # Coupling layer
-            param_map = nf.nets.MLP([latent_size] + hidden_layers * [hidden_units]
-                                    + [latent_size * (2 if scale else 1)], init_zeros=init_zeros)
+            param_map = nf.nets.MLP([(latent_size + 1) // 2] + hidden_layers * [hidden_units]
+                                    + [(latent_size // 2) * (2 if scale else 1)],
+                                    init_zeros=init_zeros)
             flows += [nf.flows.AffineCouplingBlock(param_map, scale=scale)]
 
             # Permutation
