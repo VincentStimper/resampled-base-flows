@@ -84,10 +84,20 @@ for dir in [cp_dir, plot_dir, log_dir]:
     if not os.path.isdir(dir):
         os.mkdir(dir)
 
+# Init logs
 loss_hist = np.zeros((0, 2))
 
-optimizer = torch.optim.Adam(model.parameters(), lr=config['training']['learning_rate'],
-                             weight_decay=config['training']['weight_decay'])
+# Initialize optimizer and its parameters
+lr = config['training']['learning_rate']
+weight_decay = config['training']['weight_decay']
+optimizer_name = 'adam' if not 'optimizer' in config['training'] \
+    else config['training']['optimizer']
+if optimizer_name == 'adam':
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+elif optimizer_name == 'adamax':
+    optimizer = torch.optim.Adamax(model.parameters(), lr=lr, weight_decay=weight_decay)
+else:
+    raise NotImplementedError('The optimizer ' + optimizer_name + ' is not implemented.')
 lr_warmup = 'warmup_iter' in config['training'] \
             and config['training']['warmup_iter'] is not None
 if lr_warmup:
