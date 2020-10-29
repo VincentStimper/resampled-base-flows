@@ -14,7 +14,8 @@ try:
     from openmmtools import testsystems
     import mdtraj
 except:
-    pass
+    print('Warning: Dependencies for Boltzmann generators could '
+          'not be loaded. Other models can still be used.')
 
 
 class NormalizingFlow(nf.NormalizingFlow):
