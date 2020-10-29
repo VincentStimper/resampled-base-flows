@@ -66,7 +66,7 @@ class Glow(nf.MultiscaleFlow):
         hidden_channels = config['hidden_channels']
         split_mode = config['split_mode']
         scale = config['scale']
-        use_lu = False if not 'use_lu' in config else config['use_lu']
+        use_lu = True if not 'use_lu' in config else config['use_lu']
         class_cond = config['class_cond']
         if class_cond:
             num_classes = config['num_classes']
@@ -89,15 +89,13 @@ class Glow(nf.MultiscaleFlow):
         q0 = []
         merges = []
         flows = []
-        logscale_factor = 3. if not 'lsf' in config else config['lsf']
-        net_actnorm = True if not 'net_actnorm' in config else config['net_actnorm']
+        net_actnorm = False if not 'net_actnorm' in config else config['net_actnorm']
         for i in range(L):
             flows_ = []
             for j in range(K):
                 flows_ += [nf.flows.GlowBlock(channels * 2 ** (L + 1 - i), hidden_channels,
                                               split_mode=split_mode, scale=scale,
-                                              use_lu=use_lu, logscale_factor=logscale_factor,
-                                              net_actnorm=net_actnorm)]
+                                              use_lu=use_lu, net_actnorm=net_actnorm)]
             flows_ += [nf.flows.Squeeze()]
             flows += [flows_]
             if i > 0:
@@ -128,8 +126,11 @@ class Glow(nf.MultiscaleFlow):
                 a = nf.nets.MLP(layers, output_fn='sigmoid')
                 T = config['base']['params']['T']
                 eps = config['base']['params']['eps']
+                Z_samples = None if not 'Z_samples' in config['base']['params'] \
+                    else config['base']['params']['Z_samples']
                 q0 += [distributions.FactorizedResampledGaussian(latent_shape, a, T, eps,
-                            affine_shape, same_dist=same_dist, num_classes=num_classes)]
+                            affine_shape, same_dist=same_dist, num_classes=num_classes,
+                            Z_samples=Z_samples)]
             else:
                 raise NotImplementedError('The base distribution ' + config['base']['type']
                                           + ' is not implemented')
