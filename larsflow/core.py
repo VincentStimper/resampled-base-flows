@@ -1,15 +1,21 @@
 import torch
 import numpy as np
 import normflow as nf
-import boltzgen as bg
-
-from simtk import openmm as mm
-from simtk import unit
-from simtk.openmm import app
-from openmmtools import testsystems
-import mdtraj
 
 from . import distributions
+
+# Try importing Boltzmann generator dependencies
+try:
+    import boltzgen as bg
+
+    from simtk import openmm as mm
+    from simtk import unit
+    from simtk.openmm import app
+    from openmmtools import testsystems
+    import mdtraj
+except:
+    pass
+
 
 class NormalizingFlow(nf.NormalizingFlow):
     """
