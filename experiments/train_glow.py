@@ -91,7 +91,8 @@ if config['dataset']['name'] == 'cifar10':
         config['model']['num_classes'] = 10
 
     # Transform for data loader
-    test_trans = [tv.transforms.ToTensor()]
+    test_trans = [tv.transforms.ToTensor(), nf.utils.Scale(255. / 256.),
+                  nf.utils.Jitter(1. / 256.)]
     if args.precision == 'double':
         test_trans += [utils.ToDouble()]
     # Add transformations for data augmentation if requested
@@ -342,7 +343,7 @@ for it in range(start_iter, max_iter):
 
     # Evaluation
     if args.rank == 0 and (it + 1) % log_iter == 0:
-        bpd_train = loss_hist[:, 1:] / np.log(2) / n_dims + np.log2(255.)
+        bpd_train = loss_hist[:, 1:] / np.log(2) / n_dims + 8
         np.savetxt(os.path.join(log_dir, 'loss.csv'),
                    np.concatenate([loss_hist, bpd_train], 1),
                    delimiter=',', header='it,loss,bpd', comments='')
@@ -389,7 +390,7 @@ for it in range(start_iter, max_iter):
                     y = y.to(device, non_blocking=True) if class_cond else None
                     nll = model(x, y)
                     bpd_test = np.concatenate([bpd_test,
-                                               nll.cpu().numpy() / np.log(2) / n_dims + np.log2(255.)])
+                                               nll.cpu().numpy() / np.log(2) / n_dims + 8])
                 n_not_nan = np.sum(np.logical_not(np.isnan(bpd_test)))
                 bpd_append = np.array([[it + 1, np.nanmean(bpd_test), np.nanstd(bpd_test),
                                         np.nanstd(bpd_test) / np.sqrt(n_not_nan)]])
@@ -444,7 +445,7 @@ for it in range(start_iter, max_iter):
                         y = y.to(device, non_blocking=True) if class_cond else None
                         nll = ema_model.module.forward(x, y)
                         bpd_test = np.concatenate([bpd_test,
-                                                   nll.cpu().numpy() / np.log(2) / n_dims + np.log2(255.)])
+                                                   nll.cpu().numpy() / np.log(2) / n_dims + 8])
                     n_not_nan = np.sum(np.logical_not(np.isnan(bpd_test)))
                     bpd_append = np.array([[it + 1, np.nanmean(bpd_test), np.nanstd(bpd_test),
                                             np.nanstd(bpd_test) / np.sqrt(n_not_nan)]])
