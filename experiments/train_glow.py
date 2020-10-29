@@ -96,23 +96,10 @@ if config['dataset']['name'] == 'cifar10':
         test_trans += [utils.ToDouble()]
     # Add transformations for data augmentation if requested
     if 'augment' in config['dataset'] and config['dataset']['augment']:
-        if not 'am' in config['dataset']:
-            aug_trans = [tv.transforms.RandomHorizontalFlip(),
-                         tv.transforms.ColorJitter(contrast=0.1),
-                         tv.transforms.Pad(6, padding_mode='edge'),
-                         tv.transforms.RandomAffine(5, translate=(0.1, 0.1), resample=3),
-                         tv.transforms.CenterCrop(32)]
-        elif config['dataset']['am'] == 1:
-            aug_trans = [tv.transforms.RandomHorizontalFlip(),
-                         tv.transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1),
-                         tv.transforms.Pad(4, padding_mode='edge'),
-                         tv.transforms.RandomAffine(0, translate=(0.1, 0.1)),
-                         tv.transforms.CenterCrop(32)]
-        else:
-            aug_trans = [tv.transforms.RandomHorizontalFlip(),
-                         tv.transforms.Pad(4, padding_mode='edge'),
-                         tv.transforms.RandomAffine(0, translate=(0.1, 0.1)),
-                         tv.transforms.CenterCrop(32)]
+        aug_trans = [tv.transforms.RandomHorizontalFlip(),
+                     tv.transforms.Pad(4, padding_mode='edge'),
+                     tv.transforms.RandomAffine(0, translate=(0.1, 0.1)),
+                     tv.transforms.CenterCrop(32)]
     else:
         aug_trans = []
     train_trans = aug_trans + test_trans
@@ -209,8 +196,6 @@ if 'q0_weight_decay' in config['training'] and\
     q0_weight_decay = config['training']['q0_weight_decay']
 else:
     q0_weight_decay = weight_decay
-#params = [{'params': model.q0.parameters(), 'weight_decay': q0_weight_decay},
-#          {'params': model.flows.parameters()}]
 momentum = 0.9 if not 'momentum' in config['training'] else config['training']['momentum']
 beta = 0.999 if not 'beta' in config['training'] else config['training']['beta']
 amsgrad = False if not 'amsgrad' in config['training'] else config['training']['amsgrad']
