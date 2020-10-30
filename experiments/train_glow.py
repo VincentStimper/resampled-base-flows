@@ -93,7 +93,6 @@ if config['dataset']['name'] == 'cifar10':
     # Transform for data loader
     test_trans = [tv.transforms.ToTensor(), nf.utils.Scale(255. / 256.),
                   nf.utils.Jitter(1. / 256.)]
-    #test_trans = [tv.transforms.ToTensor()]
     if args.precision == 'double':
         test_trans += [utils.ToDouble()]
     # Add transformations for data augmentation if requested
@@ -193,11 +192,6 @@ bpd_hist = np.zeros((0, 4))
 # Get parameters
 lr = config['training']['lr']
 weight_decay = config['training']['weight_decay']
-if 'q0_weight_decay' in config['training'] and\
-        config['training']['q0_weight_decay'] is not None:
-    q0_weight_decay = config['training']['q0_weight_decay']
-else:
-    q0_weight_decay = weight_decay
 momentum = 0.9 if not 'momentum' in config['training'] else config['training']['momentum']
 beta = 0.999 if not 'beta' in config['training'] else config['training']['beta']
 amsgrad = False if not 'amsgrad' in config['training'] else config['training']['amsgrad']
