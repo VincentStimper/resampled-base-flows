@@ -130,7 +130,9 @@ class Glow(nf.MultiscaleFlow):
                 if class_cond:
                     num_output *= num_classes
                 layers += (num_output,)
-                a = nf.nets.MLP(layers, output_fn='sigmoid')
+                init_zeros = True if not 'init_zeros' in config['base']['params'] \
+                    else config['base']['params']['init_zeros']
+                a = nf.nets.MLP(layers, output_fn='sigmoid', init_zeros=init_zeros)
                 T = config['base']['params']['T']
                 eps = config['base']['params']['eps']
                 Z_samples = None if not 'Z_samples' in config['base']['params'] \
