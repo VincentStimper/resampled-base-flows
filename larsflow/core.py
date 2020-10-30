@@ -278,6 +278,8 @@ class BoltzmannGenerator(NormalizingFlow):
         hidden_units = config['model']['hidden_units']
         hidden_layers = config['model']['hidden_layers']
         scale = True if config['model']['coupling'] == 'affine' else False
+        scale_map = 'exp' if not 'scale_map' in config['model'] \
+            else config['model']['scale_map']
         init_zeros = config['model']['init_zeros']
 
         # Set up base distribution
@@ -287,8 +289,10 @@ class BoltzmannGenerator(NormalizingFlow):
             eps = config['model']['base']['params']['eps']
             a_hl = config['model']['base']['params']['a_hidden_layers']
             a_hu = config['model']['base']['params']['a_hidden_units']
+            init_zeros_a = True if not 'init_zeros' in config['model']['base']['params'] \
+                else config['model']['base']['params']['init_zeros']
             a = nf.nets.MLP([latent_size] + a_hl * [a_hu] + [1], output_fn="sigmoid",
-                            init_zeros=init_zeros)
+                            init_zeros=init_zeros_a)
             q0 = distributions.ResampledGaussian(latent_size, a, T, eps,
                                 trainable=config['model']['base']['learn_mean_var'])
         else:
@@ -302,7 +306,8 @@ class BoltzmannGenerator(NormalizingFlow):
             param_map = nf.nets.MLP([(latent_size + 1) // 2] + hidden_layers * [hidden_units]
                                     + [(latent_size // 2) * (2 if scale else 1)],
                                     init_zeros=init_zeros)
-            flows += [nf.flows.AffineCouplingBlock(param_map, scale=scale)]
+            flows += [nf.flows.AffineCouplingBlock(param_map, scale=scale,
+                                                   scale_map=scale_map)]
 
             # Permutation
             if config['model']['permutation'] == 'affine':
