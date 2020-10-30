@@ -91,9 +91,9 @@ if config['dataset']['name'] == 'cifar10':
         config['model']['num_classes'] = 10
 
     # Transform for data loader
-    test_trans = [tv.transforms.ToTensor(), nf.utils.Scale(255. / 256.),
-                  nf.utils.Jitter(1. / 256.)]
-    #test_trans = [tv.transforms.ToTensor()]
+    #test_trans = [tv.transforms.ToTensor(), nf.utils.Scale(255. / 256.),
+    #              nf.utils.Jitter(1. / 256.)]
+    test_trans = [tv.transforms.ToTensor()]
     if args.precision == 'double':
         test_trans += [utils.ToDouble()]
     # Add transformations for data augmentation if requested
