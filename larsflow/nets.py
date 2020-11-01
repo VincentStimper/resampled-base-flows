@@ -34,7 +34,7 @@ class ConvNet2d(nn.Module):
         net = nn.ModuleList([])
         for i in range(n_layers):
             net.append(nn.Conv2d(channels[i], channels[i + 1], kernel_size[i],
-                                 padding=kernel_size[i] // 2), stride=stride[i])
+                                 stride=stride[i], padding=kernel_size[i] // 2))
             net.append(nn.LeakyReLU(leaky))
         net.append(nn.Flatten())
         net.append(nn.Linear(*output_units))
