@@ -149,10 +149,10 @@ class Glow(nf.MultiscaleFlow):
                 a_channels_factor = config['base']['params']['a_channels']
                 a_layers = config['base']['params']['a_layers']
                 a_channels = [1] + a_layers * [input_shape[1] // latent_shape[1] * a_channels_factor]
-                stride = a_layers * [1]
+                a_stride = a_layers * [1]
                 for l in range(levels):
                     l_ind = int((l + 1) / (levels + 1) * a_layers)
-                    stride[l_ind] = 2
+                    a_stride[l_ind] = 2
                     for c_ind in range(l_ind + 1, a_layers + 1):
                         a_channels[c_ind] = 2 * a_channels[c_ind]
                 same_dist = config['base']['params']['same_dist']
@@ -163,7 +163,10 @@ class Glow(nf.MultiscaleFlow):
                 a_output_units = [ds_h ** 2 * a_channels[-1], num_output]
                 init_zeros = True if not 'init_zeros' in config['base']['params'] \
                     else config['base']['params']['init_zeros']
-                a = nets.ConvNet2d(a_channels, a_output_units, stride=stride,
+                print(a_channels)
+                print(a_output_units)
+                print(a_stride)
+                a = nets.ConvNet2d(a_channels, a_output_units, stride=a_stride,
                                    output_fn='sigmoid', init_zeros=init_zeros)
                 T = config['base']['params']['T']
                 eps = config['base']['params']['eps']
