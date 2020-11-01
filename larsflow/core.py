@@ -3,6 +3,7 @@ import numpy as np
 import normflow as nf
 
 from . import distributions
+from . import nets
 
 # Try importing Boltzmann generator dependencies
 try:
@@ -140,6 +141,37 @@ class Glow(nf.MultiscaleFlow):
                 q0 += [distributions.FactorizedResampledGaussian(latent_shape, a, T, eps,
                             affine_shape, same_dist=same_dist, num_classes=num_classes,
                             Z_samples=Z_samples)]
+            elif config['base']['type'] == 'resampled_hw':
+                affine_shape = latent_shape[:1] + ((1,) * (len(latent_shape) - 1))
+                ds_h = latent_shape[1] if not 'downsampled_h' in config['base']['params'] \
+                    else min(latent_shape[1], config['base']['params']['downsampled_h'])
+                levels = int(np.round(np.log2(latent_shape[1] // ds_h)))
+                a_channels_factor = config['base']['params']['a_channels']
+                a_layers = config['base']['params']['a_layers']
+                a_channels = [1] + a_layers * [input_shape[1] // latent_shape[1] * a_channels_factor]
+                stride = a_layers * [1]
+                for l in range(levels):
+                    l_ind = (l + 1) // (levels + 1)
+                    stride[l_ind] = 2
+                    for c_ind in range(l_ind + 1, a_layers + 1):
+                        a_channels[c_ind] = 2 * a_channels[c_ind]
+                same_dist = config['base']['params']['same_dist']
+                if same_dist:
+                    num_output = 1
+                else:
+                    num_output = latent_shape[0]
+                a_output_units = [ds_h ** 2 * a_channels[-1], num_output]
+                init_zeros = True if not 'init_zeros' in config['base']['params'] \
+                    else config['base']['params']['init_zeros']
+                a = nets.ConvNet2d(a_channels, a_output_units, stride=stride,
+                                   output_fn='sigmoid', init_zeros=init_zeros)
+                T = config['base']['params']['T']
+                eps = config['base']['params']['eps']
+                Z_samples = None if not 'Z_samples' in config['base']['params'] \
+                    else config['base']['params']['Z_samples']
+                q0 += [distributions.FactorizedResampledGaussian(latent_shape, a, T, eps,
+                                affine_shape, group_dim=[1, 2], same_dist=same_dist,
+                                num_classes=num_classes, Z_samples=Z_samples)]
             else:
                 raise NotImplementedError('The base distribution ' + config['base']['type']
                                           + ' is not implemented')

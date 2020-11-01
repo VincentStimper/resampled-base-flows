@@ -11,7 +11,7 @@ class ConvNet2d(nn.Module):
     """
 
     def __init__(self, channels, output_units, kernel_size=3, stride=1,
-                 leaky=0.0, output_fn=None):
+                 leaky=0.0, output_fn=None, init_zeros=False):
         """
         Constructor
         :param channels: List of channels of conv layers, first entry is in_channels
@@ -22,6 +22,7 @@ class ConvNet2d(nn.Module):
         :param leaky: Leaky part of ReLU
         :param output_fn: String, function to be applied to the output, either
         None, "sigmoid", or "clampexp"
+        :param init_zeros: Flag whether last layer should be initialized with zeros
         """
         super().__init__()
         # Prepare parameters
@@ -37,7 +38,11 @@ class ConvNet2d(nn.Module):
                                  stride=stride[i], padding=kernel_size[i] // 2))
             net.append(nn.LeakyReLU(leaky))
         net.append(nn.Flatten())
-        net.append(nn.Linear(*output_units))
+        lin = nn.Linear(*output_units)
+        if init_zeros:
+            nn.init.zeros_(lin.weight)
+            nn.init.zeros_(lin.bias)
+        net.append(lin)
         if output_fn == "sigmoid":
             net.append(nn.Sigmoid())
         elif output_fn == "clampexp":
