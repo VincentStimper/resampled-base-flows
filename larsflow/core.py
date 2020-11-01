@@ -151,7 +151,7 @@ class Glow(nf.MultiscaleFlow):
                 a_channels = [1] + a_layers * [input_shape[1] // latent_shape[1] * a_channels_factor]
                 stride = a_layers * [1]
                 for l in range(levels):
-                    l_ind = (l + 1) // (levels + 1)
+                    l_ind = int((l + 1) / (levels + 1) * a_layers)
                     stride[l_ind] = 2
                     for c_ind in range(l_ind + 1, a_layers + 1):
                         a_channels[c_ind] = 2 * a_channels[c_ind]
