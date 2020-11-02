@@ -119,6 +119,9 @@ class Glow(nf.MultiscaleFlow):
                                                        num_classes)]
             elif config['base']['type'] == 'glow_base':
                 q0 += [nf.distributions.GlowBase(latent_shape, num_classes)]
+            elif config['base']['type'] == 'gauss':
+                q0 += [nf.distributions.AffineGaussian(latent_shape, latent_shape,
+                                                       num_classes)]
             elif config['base']['type'] == 'resampled_channel':
                 affine_shape = latent_shape[:1] + ((1,) * (len(latent_shape) - 1))
                 layers = latent_shape[:1]
@@ -175,6 +178,28 @@ class Glow(nf.MultiscaleFlow):
                 q0 += [distributions.FactorizedResampledGaussian(latent_shape, a, T, eps,
                                 affine_shape, group_dim=[1, 2], same_dist=same_dist,
                                 num_classes=num_classes, Z_samples=Z_samples)]
+            elif config['base']['type'] == 'resampled':
+                affine_shape = latent_shape[:1] + ((1,) * (len(latent_shape) - 1))
+                layers = latent_shape[:1]
+                layers += (config['base']['params']['a_hidden_units'],) \
+                          * config['base']['params']['a_hidden_layers']
+                same_dist = config['base']['params']['same_dist']
+                num_output = 1
+                if not same_dist:
+                    num_output *= np.prod(latent_shape[1:])
+                if class_cond:
+                    num_output *= num_classes
+                layers += (num_output,)
+                init_zeros = True if not 'init_zeros' in config['base']['params'] \
+                    else config['base']['params']['init_zeros']
+                a = nf.nets.MLP(layers, output_fn='sigmoid', init_zeros=init_zeros)
+                T = config['base']['params']['T']
+                eps = config['base']['params']['eps']
+                Z_samples = None if not 'Z_samples' in config['base']['params'] \
+                    else config['base']['params']['Z_samples']
+                q0 += [distributions.FactorizedResampledGaussian(latent_shape, a, T, eps,
+                            latent_shape, same_dist=same_dist, num_classes=num_classes,
+                            Z_samples=Z_samples)]
             else:
                 raise NotImplementedError('The base distribution ' + config['base']['type']
                                           + ' is not implemented')
