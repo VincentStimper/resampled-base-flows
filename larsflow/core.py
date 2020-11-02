@@ -197,8 +197,9 @@ class Glow(nf.MultiscaleFlow):
                 eps = config['base']['params']['eps']
                 Z_samples = None if not 'Z_samples' in config['base']['params'] \
                     else config['base']['params']['Z_samples']
+                an = nf.flows.ActNorm(affine_shape)
                 q0 += [distributions.FactorizedResampledGaussian(latent_shape, a, T, eps,
-                            latent_shape, same_dist=same_dist, num_classes=num_classes,
+                            affine_shape=None, flows=[an], same_dist=same_dist, num_classes=num_classes,
                             Z_samples=Z_samples)]
             else:
                 raise NotImplementedError('The base distribution ' + config['base']['type']
