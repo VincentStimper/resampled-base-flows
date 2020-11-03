@@ -295,8 +295,6 @@ class BoltzmannGenerator(NormalizingFlow):
                                                                 1. * unit.femtosecond),
                                           mm.Platform.getPlatformByName(config['system']['platform']),
                                           {'Precision': config['system']['precision']})
-
-            training_data = torch.randn(66, 66)
         else:
             raise NotImplementedError('The system ' + config['system']['name']
                                       + ' has not been implemented.')

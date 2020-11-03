@@ -1,8 +1,18 @@
 import torch
 import numpy as np
 
+from matplotlib import pyplot as plt
+
 import yaml
 import os
+
+# Try importing Boltzmann generator dependencies
+try:
+    import boltzgen as bg
+    import mdtraj
+except:
+    print('Warning: Dependencies for Boltzmann generators could '
+          'not be loaded. Other models can still be used.')
 
 
 def get_config(path):
@@ -93,3 +103,147 @@ class ToDouble():
 
     def __call__(self, x):
         return x.double()
+
+
+def evaluateAldp(model, test_data, n_samples=1000, n_batches=10,
+                 save_path=None, data_path='.'):
+    """
+    Evaluate model of the Boltzmann distribution of the Alanine
+    Dipeptide
+    :param model: Model to be evaluated
+    :param test_data: Torch array with test data
+    :param n_samples: Int, number of samples to draw per batch
+    :param n_batches: Int, number of batches to sample
+    :param save_path: String, path where to save plots of marginals,
+    if none plots are not created
+    :param data_path: String, path to data used for transform init
+    :return: KL divergences
+    """
+    # Set up simulation object
+    ndim = 66
+    z_matrix = [
+        (0, [1, 4, 6]),
+        (1, [4, 6, 8]),
+        (2, [1, 4, 0]),
+        (3, [1, 4, 0]),
+        (4, [6, 8, 14]),
+        (5, [4, 6, 8]),
+        (7, [6, 8, 4]),
+        (11, [10, 8, 6]),
+        (12, [10, 8, 11]),
+        (13, [10, 8, 11]),
+        (15, [14, 8, 16]),
+        (16, [14, 8, 6]),
+        (17, [16, 14, 15]),
+        (18, [16, 14, 8]),
+        (19, [18, 16, 14]),
+        (20, [18, 16, 19]),
+        (21, [18, 16, 19])
+    ]
+    cart_indices = [6, 8, 9, 10, 14]
+
+    # Load data for transform
+    # Load the alanine dipeptide trajectory
+    traj = mdtraj.load(data_path)
+    traj.center_coordinates()
+
+    # superpose on the backbone
+    ind = traj.top.select("backbone")
+
+    traj.superpose(traj, 0, atom_indices=ind, ref_atom_indices=ind)
+
+    # Gather the training data into a pytorch Tensor with the right shape
+    training_data = traj.xyz
+    n_atoms = training_data.shape[1]
+    n_dim = n_atoms * 3
+    training_data_npy = training_data.reshape(-1, n_dim)
+    training_data = torch.from_numpy(training_data_npy.astype("float64"))
+
+    # Set up transform
+    transform = bg.flows.CoordinateTransform(training_data, ndim,
+                                             z_matrix, cart_indices)
+
+    # Draw samples
+    model.eval()
+
+    z_np = np.zeros((0, 60))
+
+    for i in range(n_batches):
+        z, _ = model.sample(n_samples)
+        x = transform(z.cpu().double())
+        z = transform.inverse(x)
+        z_np = np.concatenate((z_np, z.data.numpy()))
+
+    z_d_np = test_data.cpu().data.numpy()
+
+    # Estimate density
+    nbins = 200
+    hist_range = [-5, 5]
+    ndims = z_np.shape[1]
+
+    hists_train = np.zeros((nbins, ndims))
+    hists_gen = np.zeros((nbins, ndims))
+
+    for i in range(ndims):
+        htrain, _ = np.histogram(z_d_np[:, i], nbins, range=hist_range, density=True);
+        hgen, _ = np.histogram(z_np[:, i], nbins, range=hist_range, density=True);
+
+        hists_train[:, i] = htrain
+        hists_gen[:, i] = hgen
+
+    # Compute KLD
+    eps = 1e-10
+    kld_unscaled = np.sum(hists_train * np.log((hists_train + eps) / (hists_gen + eps)), axis=0)
+    kld = kld_unscaled * (hist_range[1] - hist_range[0]) / nbins
+
+    # Split KLD into groups
+    ncarts = model.flows[-1].mixed_transform.len_cart_inds
+    permute_inv = model.flows[-1].mixed_transform.permute_inv
+    bond_ind = model.flows[-1].mixed_transform.ic_transform.bond_indices
+    angle_ind = model.flows[-1].mixed_transform.ic_transform.angle_indices
+    dih_ind = model.flows[-1].mixed_transform.ic_transform.dih_indices
+
+    kld_cart = kld[:(3 * ncarts - 6)]
+    kld_ = np.concatenate([kld[:(3 * ncarts - 6)], np.zeros(6), kld[(3 * ncarts - 6):]])
+    kld_ = kld_[permute_inv]
+    kld_bond = kld_[bond_ind]
+    kld_angle = kld_[angle_ind]
+    kld_dih = kld_[dih_ind]
+
+    if save_path is None:
+        # Histograms of the groups
+        hists_train_cart = hists_train[:, :(3 * ncarts - 6)]
+        hists_train_ = np.concatenate([hists_train[:, :(3 * ncarts - 6)], np.zeros((nbins, 6)),
+                                       hists_train[:, (3 * ncarts - 6):]], axis=1)
+        hists_train_ = hists_train_[:, permute_inv]
+        hists_train_bond = hists_train_[:, bond_ind]
+        hists_train_angle = hists_train_[:, angle_ind]
+        hists_train_dih = hists_train_[:, dih_ind]
+
+        hists_gen_cart = hists_gen[:, :(3 * ncarts - 6)]
+        hists_gen_ = np.concatenate([hists_gen[:, :(3 * ncarts - 6)], np.zeros((nbins, 6)),
+                                       hists_gen[:, (3 * ncarts - 6):]], axis=1)
+        hists_gen_ = hists_gen_[:, permute_inv]
+        hists_gen_bond = hists_gen_[:, bond_ind]
+        hists_gen_angle = hists_gen_[:, angle_ind]
+        hists_gen_dih = hists_gen_[:, dih_ind]
+
+        label = ['cart', 'bond', 'angle', 'dih']
+        hists_train_list = [hists_train_cart, hists_gen_bond, hists_train_angle, hists_train_dih]
+        hists_gen_list = [hists_gen_cart, hists_gen_bond, hists_gen_angle, hists_gen_dih]
+        x = np.linspace(*hist_range, nbins)
+        for i in range(4):
+            if i == 0:
+                fig, ax = plt.subplots(3, 3, figsize=(10, 10))
+            else:
+                fig, ax = plt.subplots(6, 3, figsize=(10, 20))
+            for j in range(hists_train_list.shape[1]):
+                ax[j // 3, j % 3].plot(x, hists_train_list[:, j])
+                ax[j // 3, j % 3].plot(x, hists_gen_list[:, j])
+            plt.savefig(save_path + '_' + label[i] + '.png', dpi=300)
+            plt.close()
+
+        return (kld_cart, kld_bond, kld_angle, kld_dih)
+
+
+
