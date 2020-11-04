@@ -229,7 +229,7 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=10,
         hists_gen_dih = hists_gen_[:, dih_ind]
 
         label = ['cart', 'bond', 'angle', 'dih']
-        hists_train_list = [hists_train_cart, hists_gen_bond, hists_train_angle, hists_train_dih]
+        hists_train_list = [hists_train_cart, hists_train_bond, hists_train_angle, hists_train_dih]
         hists_gen_list = [hists_gen_cart, hists_gen_bond, hists_gen_angle, hists_gen_dih]
         x = np.linspace(*hist_range, nbins)
         for i in range(4):

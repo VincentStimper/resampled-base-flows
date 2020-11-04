@@ -86,6 +86,11 @@ for dir in [cp_dir, plot_dir, log_dir]:
 
 # Init logs
 loss_hist = np.zeros((0, 2))
+kld_hist = np.zeros((0, 3))
+kld_cart_hist = np.zeros((0, 12))
+kld_bond_hist = np.zeros((0, 20))
+kld_angle_hist = np.zeros((0, 20))
+kld_dih_hist = np.zeros((0, 20))
 
 # Initialize optimizer and its parameters
 lr = config['training']['learning_rate']
@@ -112,17 +117,27 @@ if args.resume:
     latest_cp = bg.utils.get_latest_checkpoint(cp_dir, 'model')
     if latest_cp is not None:
         model.load(latest_cp)
+        start_iter = int(latest_cp[-10:-3])
         optimizer_path = os.path.join(cp_dir, 'optimizer.pt')
         if os.path.exists(optimizer_path):
             optimizer.load_state_dict(torch.load(optimizer_path))
         warmup_scheduler_path = os.path.join(cp_dir, 'warmup_scheduler.pt')
         if os.path.exists(warmup_scheduler_path):
             warmup_scheduler.load_state_dict(torch.load(warmup_scheduler_path))
-        loss_path = os.path.join(log_dir, 'loss.csv')
-        if os.path.exists(loss_path):
-            loss_hist = np.loadtxt(loss_path)
-            loss_hist = loss_hist[loss_hist[:, 0] <= start_iter, :]
-        start_iter = int(latest_cp[-10:-3])
+        # Load logs
+        log_labels = ['loss', 'kld', 'kld_cart', 'kld_bond', 'kld_angle', 'kld_dih']
+        log_hists = [loss_hist, kld_hist, kld_cart_hist, kld_bond_hist, kld_angle_hist,
+                     kld_dih_hist]
+        for log_label, log_hist in zip(log_labels, log_hists):
+            log_path = os.path.join(log_dir, log_label + '.csv')
+            if os.path.exists(log_path):
+                log_hist_ = np.loadtxt(log_path)
+                if log_hist_.ndim == 1:
+                    log_hist_ = log_hist_[None, :]
+                log_hist.resize(*log_hist_.shape, refcheck=False)
+                log_hist[:, :] = log_hist_
+                log_hist.resize(np.sum(kld_hist[:, 0] <= start_iter), log_hist_.shape[1],
+                                refcheck=False)
 if start_iter > 0:
     for _ in range(start_iter // config['training']['decay_iter']):
         lr_scheduler.step()
@@ -165,14 +180,24 @@ for it in range(start_iter, max_iter):
         np.savetxt(os.path.join(log_dir, 'loss.csv'), loss_hist,
                    delimiter=',', header='it,loss', comments='')
 
-    # Save checkpoint
     if (it + 1) % checkpoint_iter == 0:
+        # Save checkpoint
         model.save(os.path.join(cp_dir, 'model_%07i.pt' % (it + 1)))
         torch.save(optimizer.state_dict(),
                    os.path.join(cp_dir, 'optimizer.pt'))
         if lr_warmup:
             torch.save(warmup_scheduler.state_dict(),
                        os.path.join(cp_dir, 'warmup_scheduler.pt'))
+
+        # Evaluate model and save plots
+        kld = lf.utils.evaluateAldp(model, test_data,
+                                    save_path=plot_dir + '/_%07i' % (it + 1),
+                                    data_path=config['data_path']['transform'])
+
+        # Calculate and save KLD stats
+
+
+        # End job if necessary
         if args.tlimit is not None and (time() - start_time) / 3600 > args.tlimit:
             break
     
