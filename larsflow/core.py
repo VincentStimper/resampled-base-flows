@@ -166,9 +166,6 @@ class Glow(nf.MultiscaleFlow):
                 a_output_units = [ds_h ** 2 * a_channels[-1], num_output]
                 init_zeros = True if not 'init_zeros' in config['base']['params'] \
                     else config['base']['params']['init_zeros']
-                print(a_channels)
-                print(a_output_units)
-                print(a_stride)
                 a = nets.ConvNet2d(a_channels, a_output_units, stride=a_stride,
                                    output_fn='sigmoid', init_zeros=init_zeros)
                 T = config['base']['params']['T']
@@ -200,9 +197,6 @@ class Glow(nf.MultiscaleFlow):
                 a_output_units = [ds_h ** 2 * a_channels[-1], num_output]
                 init_zeros = True if not 'init_zeros' in config['base']['params'] \
                     else config['base']['params']['init_zeros']
-                print(a_channels)
-                print(a_output_units)
-                print(a_stride)
                 a = nets.ConvNet2d(a_channels, a_output_units, stride=a_stride,
                                    output_fn='sigmoid', init_zeros=init_zeros)
                 T = config['base']['params']['T']
