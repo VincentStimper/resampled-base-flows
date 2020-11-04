@@ -196,7 +196,7 @@ for it in range(start_iter, max_iter):
 
         # Calculate and save KLD stats
         kld_ = np.concatenate(kld)
-        kld_append = np.array([[it, np.median(kld_), np.mean(kld_)]])
+        kld_append = np.array([[it + 1, np.median(kld_), np.mean(kld_)]])
         kld_hist = np.concatenate([kld_hist, kld_append])
         np.savetxt(os.path.join(log_dir, 'kld.csv'), kld_hist, delimiter=',',
                    header='it,kld_median,kld_mean', comments='')
