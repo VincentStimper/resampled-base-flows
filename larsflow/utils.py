@@ -197,11 +197,11 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=10,
     kld = kld_unscaled * (hist_range[1] - hist_range[0]) / nbins
 
     # Split KLD into groups
-    ncarts = model.flows[-1].mixed_transform.len_cart_inds
-    permute_inv = model.flows[-1].mixed_transform.permute_inv
-    bond_ind = model.flows[-1].mixed_transform.ic_transform.bond_indices
-    angle_ind = model.flows[-1].mixed_transform.ic_transform.angle_indices
-    dih_ind = model.flows[-1].mixed_transform.ic_transform.dih_indices
+    ncarts = transform.mixed_transform.len_cart_inds
+    permute_inv = transform.mixed_transform.permute_inv
+    bond_ind = transform.mixed_transform.ic_transform.bond_indices
+    angle_ind = transform.mixed_transform.ic_transform.angle_indices
+    dih_ind = transform.mixed_transform.ic_transform.dih_indices
 
     kld_cart = kld[:(3 * ncarts - 6)]
     kld_ = np.concatenate([kld[:(3 * ncarts - 6)], np.zeros(6), kld[(3 * ncarts - 6):]])
