@@ -237,9 +237,9 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=10,
                 fig, ax = plt.subplots(3, 3, figsize=(10, 10))
             else:
                 fig, ax = plt.subplots(6, 3, figsize=(10, 20))
-            for j in range(hists_train_list.shape[1]):
-                ax[j // 3, j % 3].plot(x, hists_train_list[:, j])
-                ax[j // 3, j % 3].plot(x, hists_gen_list[:, j])
+            for j in range(hists_train_list[i].shape[1]):
+                ax[j // 3, j % 3].plot(x, hists_train_list[i][:, j])
+                ax[j // 3, j % 3].plot(x, hists_gen_list[i][:, j])
             plt.savefig(save_path + '_' + label[i] + '.png', dpi=300)
             print(save_path + '_' + label[i] + '.png')
             plt.close()
