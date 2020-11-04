@@ -105,7 +105,7 @@ class ToDouble():
         return x.double()
 
 
-def evaluateAldp(model, test_data, n_samples=1000, n_batches=10,
+def evaluateAldp(model, test_data, n_samples=1000, n_batches=100,
                  save_path=None, data_path='.'):
     """
     Evaluate model of the Boltzmann distribution of the Alanine
@@ -173,6 +173,9 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=10,
         x, _ = transform(z.cpu().double())
         z, _ = transform.inverse(x)
         z_np = np.concatenate((z_np, z.data.numpy()))
+
+    # Reset model to train
+    model.train()
 
     z_d_np = test_data.cpu().data.numpy()
 

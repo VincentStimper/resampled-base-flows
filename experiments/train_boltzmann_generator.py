@@ -204,7 +204,7 @@ for it in range(start_iter, max_iter):
         kld_labels = ['cart', 'bond', 'angle', 'dih']
         kld_hists = [kld_cart_hist, kld_bond_hist, kld_angle_hist, kld_dih_hist]
         for kld_label, kld_, kld_hist_ in zip(kld_labels, kld, kld_hists):
-            kld_append = np.concatenate(np.array([it, np.median(kld_), np.mean(kld_)], kld_))
+            kld_append = np.concatenate(np.array([it, np.median(kld_), np.mean(kld_)]), kld_)
             kld_hist_.resize(kld_hist_.shape[0] + 1, kld_hist_.shape[1], refcheck=False)
             kld_hist_[-1, :] = kld_append
             header = 'it,kld_median,kld_mean'
