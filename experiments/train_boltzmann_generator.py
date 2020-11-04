@@ -195,7 +195,6 @@ for it in range(start_iter, max_iter):
                                     data_path=config['data_path']['transform'])
 
         # Calculate and save KLD stats
-        print(kld)
         kld_ = np.concatenate(kld)
         kld_append = np.array([[it, np.median(kld_), np.mean(kld_)]])
         kld_hist = np.concatenate([kld_hist, kld_append])

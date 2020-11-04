@@ -244,7 +244,6 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=100,
                 ax[j // 3, j % 3].plot(x, hists_train_list[i][:, j])
                 ax[j // 3, j % 3].plot(x, hists_gen_list[i][:, j])
             plt.savefig(save_path + '_' + label[i] + '.png', dpi=300)
-            print(save_path + '_' + label[i] + '.png')
             plt.close()
 
         return (kld_cart, kld_bond, kld_angle, kld_dih)
