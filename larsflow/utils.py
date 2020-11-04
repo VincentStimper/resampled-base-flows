@@ -210,7 +210,7 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=10,
     kld_angle = kld_[angle_ind]
     kld_dih = kld_[dih_ind]
 
-    if save_path is None:
+    if save_path is not None:
         # Histograms of the groups
         hists_train_cart = hists_train[:, :(3 * ncarts - 6)]
         hists_train_ = np.concatenate([hists_train[:, :(3 * ncarts - 6)], np.zeros((nbins, 6)),
