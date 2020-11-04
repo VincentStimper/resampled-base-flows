@@ -191,10 +191,11 @@ for it in range(start_iter, max_iter):
 
         # Evaluate model and save plots
         kld = lf.utils.evaluateAldp(model, test_data,
-                                    save_path=plot_dir + '/marginals_%07i' % (it + 1),
+                                    save_path=os.path.join(plot_dir, '/marginals_%07i' % (it + 1)),
                                     data_path=config['data_path']['transform'])
 
         # Calculate and save KLD stats
+        print(kld)
         kld_ = np.concatenate(kld)
         kld_append = np.array([[it, np.median(kld_), np.mean(kld_)]])
         kld_hist = np.concatenate([kld_hist, kld_append])
