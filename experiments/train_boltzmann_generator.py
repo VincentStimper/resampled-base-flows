@@ -209,8 +209,8 @@ for it in range(start_iter, max_iter):
             header = 'it,kld_median,kld_mean'
             for kld_ind in range(len(kld_)):
                 header += ',kld' + str(kld_ind)
-            np.savetxt(os.path.join(log_dir, kld_label + '.csv'), kld_hist_, delimiter=',',
-                       header=header, comments='')
+            np.savetxt(os.path.join(log_dir, 'kld_' + kld_label + '.csv'), kld_hist_,
+                       delimiter=',', header=header, comments='')
 
         # End job if necessary
         if args.tlimit is not None and (time() - start_time) / 3600 > args.tlimit:
