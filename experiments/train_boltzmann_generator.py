@@ -191,7 +191,7 @@ for it in range(start_iter, max_iter):
 
         # Evaluate model and save plots
         kld = lf.utils.evaluateAldp(model, test_data,
-                                    save_path=plot_dir + '/_%07i' % (it + 1),
+                                    save_path=plot_dir + '/marginals_%07i' % (it + 1),
                                     data_path=config['data_path']['transform'])
 
         # Calculate and save KLD stats
