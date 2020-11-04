@@ -170,8 +170,8 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=10,
 
     for i in range(n_batches):
         z, _ = model.sample(n_samples)
-        x = transform(z.cpu().double())
-        z = transform.inverse(x)
+        x, _ = transform(z.cpu().double())
+        z, _ = transform.inverse(x)
         z_np = np.concatenate((z_np, z.data.numpy()))
 
     z_d_np = test_data.cpu().data.numpy()
