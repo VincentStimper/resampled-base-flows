@@ -145,7 +145,7 @@ if start_iter > 0:
 
 # Get data loader
 batch_size = config['training']['batch_size']
-train_loader = torch.utils.data.Dataloader(training_data, batch_size=batch_size,
+train_loader = torch.utils.data.DataLoader(training_data, batch_size=batch_size,
                                            shuffle=True, pin_memory=True,
                                            drop_last=True, num_workers=8)
 train_iter = iter(training_data)
