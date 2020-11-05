@@ -138,19 +138,30 @@ if args.resume:
                 log_hist[:, :] = log_hist_
                 log_hist.resize(np.sum(kld_hist[:, 0] <= start_iter), log_hist_.shape[1],
                                 refcheck=False)
+# Set lr scheduler towards previous state in case of resume
 if start_iter > 0:
     for _ in range(start_iter // config['training']['decay_iter']):
         lr_scheduler.step()
 
+# Get data loader
+batch_size = config['training']['batch_size']
+train_loader = torch.utils.data.Dataloader(training_data, batch_size=batch_size,
+                                           shuffle=True, pin_memory=True,
+                                           drop_last=True, num_workers=8)
+train_iter = iter(training_data)
+
+
 # Start training
 start_time = time()
 
-batch_size = config['training']['batch_size']
-
 for it in range(start_iter, max_iter):
     # Get batch from dataset
-    ind = torch.randint(n_data, (batch_size, ))
-    x = training_data[ind, :].to(device)
+    try:
+        x = next(train_iter)
+    except StopIteration:
+        train_iter = iter(train_loader)
+        x = next(train_iter)
+    x = x.to(device, non_blocking=True)
 
     # Get loss
     loss = model.forward_kld(x)
