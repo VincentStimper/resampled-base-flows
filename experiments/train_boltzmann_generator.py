@@ -131,7 +131,7 @@ if args.resume:
         for log_label, log_hist in zip(log_labels, log_hists):
             log_path = os.path.join(log_dir, log_label + '.csv')
             if os.path.exists(log_path):
-                log_hist_ = np.loadtxt(log_path)
+                log_hist_ = np.loadtxt(log_path, delimiter=',', skiprows=1)
                 if log_hist_.ndim == 1:
                     log_hist_ = log_hist_[None, :]
                 log_hist.resize(*log_hist_.shape, refcheck=False)
