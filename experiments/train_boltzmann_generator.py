@@ -283,7 +283,7 @@ for it in range(start_iter, max_iter):
             # Calculate and save KLD stats
             kld_ = np.concatenate(kld)
             kld_append = np.array([[it + 1, np.median(kld_), np.mean(kld_)]])
-            ema_kld_hist = np.concatenate([kld_hist, kld_append])
+            ema_kld_hist = np.concatenate([ema_kld_hist, kld_append])
             np.savetxt(os.path.join(log_dir, 'ema_kld.csv'), ema_kld_hist, delimiter=',',
                        header='it,kld_median,kld_mean', comments='')
             kld_labels = ['cart', 'bond', 'angle', 'dih']
