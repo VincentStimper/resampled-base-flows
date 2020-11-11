@@ -267,28 +267,28 @@ class BoltzmannGenerator(NormalizingFlow):
             temperature = config['system']['temperature']
 
             if config['system']['constraints']:
-                self.system = testsystems.AlanineDipeptideVacuum()
+                system = testsystems.AlanineDipeptideVacuum()
             else:
-                self.system = testsystems.AlanineDipeptideVacuum(constraints=None)
+                system = testsystems.AlanineDipeptideVacuum(constraints=None)
             if config['system']['platform'] == 'CPU':
-                self.sim = app.Simulation(self.system.topology, self.system.system,
-                                          mm.LangevinIntegrator(temperature * unit.kelvin,
-                                                                1. / unit.picosecond,
-                                                                1. * unit.femtosecond),
+                sim = app.Simulation(system.topology, system.system,
+                                     mm.LangevinIntegrator(temperature * unit.kelvin,
+                                                           1. / unit.picosecond,
+                                                           1. * unit.femtosecond),
                                           mm.Platform.getPlatformByName('CPU'))
             elif config['system']['platform'] == 'Reference':
-                self.sim = app.Simulation(self.system.topology, self.system.system,
-                                          mm.LangevinIntegrator(temperature * unit.kelvin,
-                                                                1. / unit.picosecond,
-                                                                1. * unit.femtosecond),
-                                          mm.Platform.getPlatformByName('Reference'))
+                sim = app.Simulation(system.topology, system.system,
+                                     mm.LangevinIntegrator(temperature * unit.kelvin,
+                                                           1. / unit.picosecond,
+                                                           1. * unit.femtosecond),
+                                     mm.Platform.getPlatformByName('Reference'))
             else:
-                self.sim = app.Simulation(self.system.topology, self.system.system,
-                                          mm.LangevinIntegrator(temperature * unit.kelvin,
-                                                                1. / unit.picosecond,
-                                                                1. * unit.femtosecond),
-                                          mm.Platform.getPlatformByName(config['system']['platform']),
-                                          {'Precision': config['system']['precision']})
+                sim = app.Simulation(system.topology, system.system,
+                                     mm.LangevinIntegrator(temperature * unit.kelvin,
+                                                           1. / unit.picosecond,
+                                                           1. * unit.femtosecond),
+                                     mm.Platform.getPlatformByName(config['system']['platform']),
+                                     {'Precision': config['system']['precision']})
         else:
             raise NotImplementedError('The system ' + config['system']['name']
                                       + ' has not been implemented.')
@@ -323,19 +323,19 @@ class BoltzmannGenerator(NormalizingFlow):
 
         if 'parallel_energy' in config['system'] and config['system']['parallel_energy']:
             if add_transform:
-                p = bg.distributions.BoltzmannParallel(self.system, temperature,
+                p = bg.distributions.BoltzmannParallel(system, temperature,
                         energy_cut=energy_cut, energy_max=energy_max,
                         n_threads=config['system']['n_threads'])
             else:
-                p = bg.distributions.TransformedBoltzmannParallel(self.system, temperature,
+                p = bg.distributions.TransformedBoltzmannParallel(system, temperature,
                         energy_cut=energy_cut, energy_max=energy_max, transform=transform,
                         n_threads=config['system']['n_threads'])
         else:
             if add_transform:
-                p = bg.distributions.Boltzmann(self.sim.context, temperature,
+                p = bg.distributions.Boltzmann(sim.context, temperature,
                         energy_cut=energy_cut, energy_max=energy_max)
             else:
-                p = bg.distributions.TransformedBoltzmann(self.sim.context, temperature,
+                p = bg.distributions.TransformedBoltzmann(sim.context, temperature,
                         energy_cut=energy_cut, energy_max=energy_max, transform=transform)
 
         # Set up parameters for flow layers

@@ -37,7 +37,7 @@ config = lf.utils.get_config(args.config)
 
 
 # Create model
-model = lf.BoltzmannGenerator(config, include_p=False)
+model = lf.BoltzmannGenerator(config)#, include_p=False)
 
 # Move model on GPU if available
 use_gpu = not args.mode == 'cpu' and torch.cuda.is_available()
@@ -119,8 +119,6 @@ if ema:
     ema_beta = config['training']['ema']
     ema_avg = lambda averaged_model_parameter, model_parameter, num_averaged: \
         ema_beta * averaged_model_parameter + (1 - ema_beta) * model_parameter
-    print(model.flows[-1])
-    print(model.p)
     ema_model = AveragedModel(model, avg_fn=ema_avg)
     ema_kld_hist = np.zeros((0, 3))
     ema_kld_cart_hist = np.zeros((0, 12))
