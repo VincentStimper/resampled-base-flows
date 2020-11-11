@@ -234,7 +234,7 @@ class BoltzmannGenerator(NormalizingFlow):
     """
     Boltzmann Generator with architecture inspired by arXiv:2002.06707
     """
-    def __init__(self, config):
+    def __init__(self, config, include_p=True):
         """
         Constructor
         :param config: Dict, specified by a yaml file, see sample config file
@@ -390,4 +390,4 @@ class BoltzmannGenerator(NormalizingFlow):
             flows += [transform]
 
         # Construct flow model
-        super().__init__(q0=q0, flows=flows, p=p)
+        super().__init__(q0=q0, flows=flows, p=(p if include_p else None))
