@@ -119,7 +119,7 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=100,
     :param data_path: String, path to data used for transform init
     :return: KL divergences
     """
-    # Set up simulation object
+    # Set params for transform
     ndim = 66
     z_matrix = [
         (0, [1, 4, 6]),
@@ -163,9 +163,6 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=100,
     transform = bg.flows.CoordinateTransform(training_data, ndim,
                                              z_matrix, cart_indices)
 
-    # Draw samples
-    model.eval()
-
     z_np = np.zeros((0, 60))
 
     for i in range(n_batches):
@@ -173,9 +170,6 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=100,
         x, _ = transform(z.cpu().double())
         z, _ = transform.inverse(x)
         z_np = np.concatenate((z_np, z.data.numpy()))
-
-    # Reset model to train
-    model.train()
 
     z_d_np = test_data.cpu().data.numpy()
 

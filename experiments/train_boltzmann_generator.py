@@ -1,6 +1,7 @@
 # Import modules
 import torch
 import numpy as np
+from torch.optim.swa_utils import AveragedModel
 
 import larsflow as lf
 import boltzgen as bg
@@ -111,6 +112,20 @@ if lr_warmup:
 lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizer,
                                                       gamma=config['training']['rate_decay'])
 
+# Polyak (EMA) averaging
+ema = True if 'ema' in config['training'] and config['training']['ema'] is not None \
+    else False
+if ema:
+    ema_beta = config['training']['ema']
+    ema_avg = lambda averaged_model_parameter, model_parameter, num_averaged: \
+        ema_beta * averaged_model_parameter + (1 - ema_beta) * model_parameter
+    ema_model = AveragedModel(model, avg_fn=ema_avg)
+    ema_kld_hist = np.zeros((0, 3))
+    ema_kld_cart_hist = np.zeros((0, 12))
+    ema_kld_bond_hist = np.zeros((0, 20))
+    ema_kld_angle_hist = np.zeros((0, 20))
+    ema_kld_dih_hist = np.zeros((0, 20))
+
 # Resume training if needed
 start_iter = 0
 if args.resume:
@@ -138,6 +153,23 @@ if args.resume:
                 log_hist[:, :] = log_hist_
                 log_hist.resize(np.sum(kld_hist[:, 0] <= start_iter), log_hist_.shape[1],
                                 refcheck=False)
+        # Load ema logs if needed
+        if ema:
+            log_labels = ['ema_kld', 'ema_kld_cart', 'ema_kld_bond', 'ema_kld_angle',
+                          'ema_kld_dih']
+            log_hists = [ema_kld_hist, ema_kld_cart_hist, ema_kld_bond_hist,
+                         ema_kld_angle_hist, ema_kld_dih_hist]
+            for log_label, log_hist in zip(log_labels, log_hists):
+                log_path = os.path.join(log_dir, log_label + '.csv')
+                if os.path.exists(log_path):
+                    log_hist_ = np.loadtxt(log_path, delimiter=',', skiprows=1)
+                    if log_hist_.ndim == 1:
+                        log_hist_ = log_hist_[None, :]
+                    log_hist.resize(*log_hist_.shape, refcheck=False)
+                    log_hist[:, :] = log_hist_
+                    log_hist.resize(np.sum(kld_hist[:, 0] <= start_iter), log_hist_.shape[1],
+                                    refcheck=False)
+
 # Set lr scheduler towards previous state in case of resume
 if start_iter > 0:
     for _ in range(start_iter // config['training']['decay_iter']):
@@ -171,6 +203,10 @@ for it in range(start_iter, max_iter):
         loss.backward()
         optimizer.step()
 
+    # Perform ema
+    if ema:
+        ema_model.update_parameters(model)
+
     # Log loss
     loss_append = np.array([[it + 1, loss.item()]])
     loss_hist = np.concatenate([loss_hist, loss_append])
@@ -201,9 +237,11 @@ for it in range(start_iter, max_iter):
                        os.path.join(cp_dir, 'warmup_scheduler.pt'))
 
         # Evaluate model and save plots
+        model.eval()
         kld = lf.utils.evaluateAldp(model, test_data,
                                     save_path=os.path.join(plot_dir, 'marginals_%07i' % (it + 1)),
                                     data_path=config['data_path']['transform'])
+        model.train()
 
         # Calculate and save KLD stats
         kld_ = np.concatenate(kld)
@@ -222,6 +260,50 @@ for it in range(start_iter, max_iter):
                 header += ',kld' + str(kld_ind)
             np.savetxt(os.path.join(log_dir, 'kld_' + kld_label + '.csv'), kld_hist_,
                        delimiter=',', header=header, comments='')
+
+        # Evaluate ema model
+        if ema:
+            # Set model to evaluation mode
+            ema_model.eval()
+
+            # Estimate Z if needed
+            if 'resampled' in config['model']['base']['type']:
+                num_s = 2 ** 17 if not 'Z_num_samples' in config['training'] \
+                    else config['training']['Z_num_samples']
+                num_b = 2 ** 10 if not 'Z_num_batches' in config['training'] \
+                    else config['training']['Z_num_batches']
+                for q0 in ema_model.module.q0:
+                    q0.estimate_Z(num_s, num_b)
+
+            # Evaluate ema model and save plots
+            kld = lf.utils.evaluateAldp(ema_model.module, test_data,
+                                        save_path=os.path.join(plot_dir, 'ema_marginals_%07i' % (it + 1)),
+                                        data_path=config['data_path']['transform'])
+
+            # Calculate and save KLD stats
+            kld_ = np.concatenate(kld)
+            kld_append = np.array([[it + 1, np.median(kld_), np.mean(kld_)]])
+            kld_hist = np.concatenate([kld_hist, kld_append])
+            np.savetxt(os.path.join(log_dir, 'ema_kld.csv'), kld_hist, delimiter=',',
+                       header='it,kld_median,kld_mean', comments='')
+            kld_labels = ['cart', 'bond', 'angle', 'dih']
+            kld_hists = [kld_cart_hist, kld_bond_hist, kld_angle_hist, kld_dih_hist]
+            for kld_label, kld_, kld_hist_ in zip(kld_labels, kld, kld_hists):
+                kld_append = np.concatenate([np.array([it + 1, np.median(kld_), np.mean(kld_)]), kld_])
+                kld_hist_.resize(kld_hist_.shape[0] + 1, kld_hist_.shape[1], refcheck=False)
+                kld_hist_[-1, :] = kld_append
+                header = 'it,kld_median,kld_mean'
+                for kld_ind in range(len(kld_)):
+                    header += ',kld' + str(kld_ind)
+                np.savetxt(os.path.join(log_dir, 'ema_kld_' + kld_label + '.csv'), kld_hist_,
+                           delimiter=',', header=header, comments='')
+
+            # Save model
+            torch.save(ema_model.state_dict(),
+                       os.path.join(cp_dir, 'ema_model_%07i.pt' % (it + 1)))
+
+            # Reset model to train mode
+            ema_model.train()
 
         # End job if necessary
         if args.tlimit is not None and (time() - start_time) / 3600 > args.tlimit:

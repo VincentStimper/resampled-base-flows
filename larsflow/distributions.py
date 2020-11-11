@@ -95,6 +95,24 @@ class ResampledGaussian(nf.distributions.BaseDistribution):
         log_p = torch.log((1 - alpha) * acc[:, 0] / Z + alpha) + log_p_gauss
         return log_p
 
+    def estimate_Z(self, num_samples, num_batches=1):
+        """
+        Estimate Z via Monte Carlo sampling
+        :param num_samples: Number of samples to draw per batch
+        :param num_batches: Number of batches to draw
+        """
+        with torch.no_grad():
+            self.Z = self.Z * 0.
+            # Get dtype and device
+            dtype = self.Z.dtype
+            device = self.Z.device
+            for i in range(num_batches):
+                eps = torch.randn((num_samples, self.d), dtype=dtype,
+                                  device=device)
+                acc_ = self.a(eps)
+                Z_batch = torch.mean(acc_)
+                self.Z = self.Z + Z_batch.detach() / num_batches
+
 
 class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
     """
