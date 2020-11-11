@@ -283,13 +283,15 @@ for it in range(start_iter, max_iter):
             # Calculate and save KLD stats
             kld_ = np.concatenate(kld)
             kld_append = np.array([[it + 1, np.median(kld_), np.mean(kld_)]])
-            kld_hist = np.concatenate([kld_hist, kld_append])
-            np.savetxt(os.path.join(log_dir, 'ema_kld.csv'), kld_hist, delimiter=',',
+            ema_kld_hist = np.concatenate([kld_hist, kld_append])
+            np.savetxt(os.path.join(log_dir, 'ema_kld.csv'), ema_kld_hist, delimiter=',',
                        header='it,kld_median,kld_mean', comments='')
             kld_labels = ['cart', 'bond', 'angle', 'dih']
-            kld_hists = [kld_cart_hist, kld_bond_hist, kld_angle_hist, kld_dih_hist]
+            kld_hists = [ema_kld_cart_hist, ema_kld_bond_hist, ema_kld_angle_hist,
+                         ema_kld_dih_hist]
             for kld_label, kld_, kld_hist_ in zip(kld_labels, kld, kld_hists):
-                kld_append = np.concatenate([np.array([it + 1, np.median(kld_), np.mean(kld_)]), kld_])
+                kld_append = np.concatenate([np.array([it + 1, np.median(kld_),
+                                                       np.mean(kld_)]), kld_])
                 kld_hist_.resize(kld_hist_.shape[0] + 1, kld_hist_.shape[1], refcheck=False)
                 kld_hist_[-1, :] = kld_append
                 header = 'it,kld_median,kld_mean'
