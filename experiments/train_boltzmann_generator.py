@@ -158,7 +158,7 @@ if args.resume:
         if ema:
             ema_path = os.path.join(cp_dir, 'ema_model_%07i.pt' % start_iter)
             if os.path.exists(ema_path):
-                ema_model.load_state_dict(ema_path)
+                ema_model.load_state_dict(torch.load(ema_path))
             log_labels = ['ema_kld', 'ema_kld_cart', 'ema_kld_bond', 'ema_kld_angle',
                           'ema_kld_dih']
             log_hists = [ema_kld_hist, ema_kld_cart_hist, ema_kld_bond_hist,
