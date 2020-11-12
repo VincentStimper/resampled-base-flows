@@ -154,8 +154,11 @@ if args.resume:
                 log_hist[:, :] = log_hist_
                 log_hist.resize(np.sum(log_hist_[:, 0] <= start_iter), log_hist_.shape[1],
                                 refcheck=False)
-        # Load ema logs if needed
+        # Load ema model and logs if needed
         if ema:
+            ema_path = os.path.join(cp_dir, 'ema_model_%07i.pt' % start_iter)
+            if os.path.exists(ema_path):
+                ema_model.load_state_dict(ema_path)
             log_labels = ['ema_kld', 'ema_kld_cart', 'ema_kld_bond', 'ema_kld_angle',
                           'ema_kld_dih']
             log_hists = [ema_kld_hist, ema_kld_cart_hist, ema_kld_bond_hist,
