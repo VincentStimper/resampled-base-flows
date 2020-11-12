@@ -152,7 +152,7 @@ if args.resume:
                     log_hist_ = log_hist_[None, :]
                 log_hist.resize(*log_hist_.shape, refcheck=False)
                 log_hist[:, :] = log_hist_
-                log_hist.resize(np.sum(kld_hist[:, 0] <= start_iter), log_hist_.shape[1],
+                log_hist.resize(np.sum(log_hist_[:, 0] <= start_iter), log_hist_.shape[1],
                                 refcheck=False)
         # Load ema logs if needed
         if ema:
