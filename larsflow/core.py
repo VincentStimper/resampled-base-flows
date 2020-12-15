@@ -174,7 +174,7 @@ class Glow(nf.MultiscaleFlow):
                     num_output = 1
                 else:
                     num_output = latent_shape[0]
-                num_output *= 2 ** n_squeeze
+                num_output *= 4 ** n_squeeze
                 a_output_units = [ds_h ** 2 * a_channels[-1], num_output]
                 init_zeros = True if not 'init_zeros' in config['base']['params'] \
                     else config['base']['params']['init_zeros']
