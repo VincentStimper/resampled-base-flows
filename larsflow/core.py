@@ -145,7 +145,7 @@ class Glow(nf.MultiscaleFlow):
                             affine_shape, same_dist=same_dist, num_classes=num_classes,
                             Z_samples=Z_samples)]
             elif config['base']['type'] == 'resampled_hw':
-                affine_shape = latent_shape[:1] + ((1,) * (len(latent_shape) - 1))
+                affine_shape = [latent_shape[1],  1, 1]
                 # Height of the input to the CNN, features will be squeezed if their
                 # height is larger
                 input_h = None if not 'input_h' in config['base']['params'] \
@@ -175,6 +175,7 @@ class Glow(nf.MultiscaleFlow):
                 else:
                     num_output = latent_shape[0]
                 num_output *= 4 ** n_squeeze
+                affine_shape[0] *= 4 ** n_squeeze
                 a_output_units = [ds_h ** 2 * a_channels[-1], num_output]
                 init_zeros = True if not 'init_zeros' in config['base']['params'] \
                     else config['base']['params']['init_zeros']
@@ -184,6 +185,7 @@ class Glow(nf.MultiscaleFlow):
                 eps = config['base']['params']['eps']
                 Z_samples = None if not 'Z_samples' in config['base']['params'] \
                     else config['base']['params']['Z_samples']
+                # Add squeeze layers
                 flows_a = [nf.flows.Squeeze() for _ in range(n_squeeze)]
                 q0 += [distributions.FactorizedResampledGaussian(latent_shape, a, T, eps,
                                 affine_shape, flows=flows_a, group_dim=[1, 2],
