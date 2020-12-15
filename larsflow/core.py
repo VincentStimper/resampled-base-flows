@@ -196,6 +196,8 @@ class Glow(nf.MultiscaleFlow):
                 print("a_stride " + str(a_stride))
                 print("a_output " + str(a_output_units))
                 print(flows_a)
+                print(latent_shape)
+                print(affine_shape)
             elif config['base']['type'] == 'resampled':
                 affine_shape = latent_shape[:1] + ((1,) * (len(latent_shape) - 1))
                 ds_h = latent_shape[1] if not 'downsampled_h' in config['base']['params'] \
