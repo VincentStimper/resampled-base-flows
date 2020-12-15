@@ -146,23 +146,35 @@ class Glow(nf.MultiscaleFlow):
                             Z_samples=Z_samples)]
             elif config['base']['type'] == 'resampled_hw':
                 affine_shape = latent_shape[:1] + ((1,) * (len(latent_shape) - 1))
+                # Height of the input to the CNN, features will be squeezed if their
+                # height is larger
+                input_h = None if not 'input_h' in config['base']['params'] \
+                    else config['base']['params']['input_h']
+                # Height of the features tensor after being processed by the CNN
+                # Determines the strides
                 ds_h = latent_shape[1] if not 'downsampled_h' in config['base']['params'] \
                     else min(latent_shape[1], config['base']['params']['downsampled_h'])
-                levels = int(np.round(np.log2(latent_shape[1] // ds_h)))
+                if input_h is None or input_h >= latent_shape[1]:
+                    levels = int(np.round(np.log2(latent_shape[1] // ds_h)))
+                    n_squeeze = 0
+                else:
+                    levels = int(np.round(np.log2(input_h // ds_h)))
+                    n_squeeze = int(np.round(np.log2(latent_shape[1] // input_h)))
                 a_channels_factor = config['base']['params']['a_channels']
                 a_layers = config['base']['params']['a_layers']
                 a_channels = [1] + a_layers * [a_channels_factor]
                 a_stride = a_layers * [1]
                 for l in range(levels):
-                    l_ind = int((l + 1) / (levels + 1) * a_layers)
-                    a_stride[l_ind] = 2
+                    l_ind = int((l + 1) / levels * a_layers)
+                    a_stride[l_ind] *= 2
                     for c_ind in range(l_ind + 1, a_layers + 1):
-                        a_channels[c_ind] = 2 * a_channels[c_ind]
+                        a_channels[c_ind] *= 2
                 same_dist = config['base']['params']['same_dist']
                 if same_dist:
                     num_output = 1
                 else:
                     num_output = latent_shape[0]
+                num_output *= 2 ** n_squeeze
                 a_output_units = [ds_h ** 2 * a_channels[-1], num_output]
                 init_zeros = True if not 'init_zeros' in config['base']['params'] \
                     else config['base']['params']['init_zeros']
@@ -172,9 +184,11 @@ class Glow(nf.MultiscaleFlow):
                 eps = config['base']['params']['eps']
                 Z_samples = None if not 'Z_samples' in config['base']['params'] \
                     else config['base']['params']['Z_samples']
+                flows_a = [nf.flows.Squeeze() for _ in range(n_squeeze)]
                 q0 += [distributions.FactorizedResampledGaussian(latent_shape, a, T, eps,
-                                affine_shape, group_dim=[1, 2], same_dist=same_dist,
-                                num_classes=num_classes, Z_samples=Z_samples)]
+                                affine_shape, flows=flows_a, group_dim=[1, 2],
+                                same_dist=same_dist, num_classes=num_classes,
+                                Z_samples=Z_samples)]
             elif config['base']['type'] == 'resampled':
                 affine_shape = latent_shape[:1] + ((1,) * (len(latent_shape) - 1))
                 ds_h = latent_shape[1] if not 'downsampled_h' in config['base']['params'] \
