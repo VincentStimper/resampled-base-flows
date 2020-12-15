@@ -177,7 +177,7 @@ class Glow(nf.MultiscaleFlow):
                 # Adjust parameters when squeezing is applied
                 num_output *= 4 ** n_squeeze
                 affine_shape[0] *= 4 ** n_squeeze
-                shape_in_a = latent_shape
+                shape_in_a = list(latent_shape)
                 shape_in_a[0] *= 4 ** n_squeeze
                 shape_in_a[1] //= 2 ** n_squeeze
                 shape_in_a[2] //= 2 ** n_squeeze
