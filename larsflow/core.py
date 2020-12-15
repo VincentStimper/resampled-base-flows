@@ -145,7 +145,7 @@ class Glow(nf.MultiscaleFlow):
                             affine_shape, same_dist=same_dist, num_classes=num_classes,
                             Z_samples=Z_samples)]
             elif config['base']['type'] == 'resampled_hw':
-                affine_shape = [latent_shape[1],  1, 1]
+                affine_shape = [latent_shape[0],  1, 1]
                 # Height of the input to the CNN, features will be squeezed if their
                 # height is larger
                 input_h = None if not 'input_h' in config['base']['params'] \
