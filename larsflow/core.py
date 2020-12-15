@@ -165,7 +165,7 @@ class Glow(nf.MultiscaleFlow):
                 a_channels = [1] + a_layers * [a_channels_factor]
                 a_stride = a_layers * [1]
                 for l in range(levels):
-                    l_ind = int((l + 1) / levels * a_layers)
+                    l_ind = int((l + 1) / levels * (a_layers - 1))
                     a_stride[l_ind] *= 2
                     for c_ind in range(l_ind + 1, a_layers + 1):
                         a_channels[c_ind] *= 2
