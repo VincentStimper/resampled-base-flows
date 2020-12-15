@@ -174,8 +174,13 @@ class Glow(nf.MultiscaleFlow):
                     num_output = 1
                 else:
                     num_output = latent_shape[0]
+                # Adjust parameters when squeezing is applied
                 num_output *= 4 ** n_squeeze
                 affine_shape[0] *= 4 ** n_squeeze
+                shape_in_a = latent_shape
+                shape_in_a[0] *= 4 ** n_squeeze
+                shape_in_a[1] //= 2 ** n_squeeze
+                shape_in_a[2] //= 2 ** n_squeeze
                 a_output_units = [ds_h ** 2 * a_channels[-1], num_output]
                 init_zeros = True if not 'init_zeros' in config['base']['params'] \
                     else config['base']['params']['init_zeros']
@@ -187,7 +192,7 @@ class Glow(nf.MultiscaleFlow):
                     else config['base']['params']['Z_samples']
                 # Add squeeze layers
                 flows_a = [nf.flows.Squeeze() for _ in range(n_squeeze)]
-                q0 += [distributions.FactorizedResampledGaussian(latent_shape, a, T, eps,
+                q0 += [distributions.FactorizedResampledGaussian(shape_in_a, a, T, eps,
                                 affine_shape, flows=flows_a, group_dim=[1, 2],
                                 same_dist=same_dist, num_classes=num_classes,
                                 Z_samples=Z_samples)]
@@ -196,7 +201,7 @@ class Glow(nf.MultiscaleFlow):
                 print("a_stride " + str(a_stride))
                 print("a_output " + str(a_output_units))
                 print(flows_a)
-                print(latent_shape)
+                print(shape_in_a)
                 print(affine_shape)
             elif config['base']['type'] == 'resampled':
                 affine_shape = latent_shape[:1] + ((1,) * (len(latent_shape) - 1))
