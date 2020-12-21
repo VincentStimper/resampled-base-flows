@@ -31,6 +31,7 @@ model:                              # Properties of the model
       eps: 0.05                     # Value to be used for exponential averaging
       a_hidden_layers: 2            # Hidden layers of the NN determining a
       a_hidden_units: 512           # Hidden units in the hidden layers of the NN determining a
+  flow_type: rnvp                   # String, flow type, can be rnvp or residual
   transform: False                  # Flag, if true, coordinate transform is added as last flow layer
   latent_size: 60                   # Int, number of features in the latent space
   blocks: 16                        # Int, number of Real NVP blocks, consisting of an ActNorm layer

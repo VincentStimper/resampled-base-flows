@@ -360,11 +360,20 @@ class BoltzmannGenerator(NormalizingFlow):
                         energy_cut=energy_cut, energy_max=energy_max, transform=transform)
 
         # Set up parameters for flow layers
+        self.flow_type = config['model']['flow_type']
         hidden_units = config['model']['hidden_units']
         hidden_layers = config['model']['hidden_layers']
-        scale = True if config['model']['coupling'] == 'affine' else False
-        scale_map = 'exp' if not 'scale_map' in config['model'] \
-            else config['model']['scale_map']
+        # Get parameters specific to flow type
+        if self.flow_type == 'rnvp':
+            scale = True if config['model']['coupling'] == 'affine' else False
+            scale_map = 'exp' if not 'scale_map' in config['model'] \
+                else config['model']['scale_map']
+        elif self.flow_type == 'residual':
+            lipschitz_const = 0.9 if not 'lipschitz_const' in config['model'] \
+                else config['model']['lipschitz_const']
+        else:
+            raise NotImplementedError('The flow type ' + self.flow_type
+                                      + ' is not yet implemented.')
         init_zeros = config['model']['init_zeros']
 
         # Set up base distribution
@@ -385,23 +394,31 @@ class BoltzmannGenerator(NormalizingFlow):
                                 trainable=config['model']['base']['learn_mean_var'])
         else:
             raise NotImplementedError('The base distribution ' + config['model']['base']['type']
-                                      + ' is not implemented')
+                                      + ' is not implemented.')
 
         # Set up flow layers
         flows = []
         for i in range(blocks):
-            # Coupling layer
-            param_map = nf.nets.MLP([(latent_size + 1) // 2] + hidden_layers * [hidden_units]
-                                    + [(latent_size // 2) * (2 if scale else 1)],
-                                    init_zeros=init_zeros)
-            flows += [nf.flows.AffineCouplingBlock(param_map, scale=scale,
-                                                   scale_map=scale_map)]
+            # Transformation layer
+            if self.flow_type == 'rnvp':
+                # Coupling layer
+                param_map = nf.nets.MLP([(latent_size + 1) // 2] + hidden_layers * [hidden_units]
+                                        + [(latent_size // 2) * (2 if scale else 1)],
+                                        init_zeros=init_zeros)
+                flows += [nf.flows.AffineCouplingBlock(param_map, scale=scale,
+                                                       scale_map=scale_map)]
+            elif self.flow_type == 'residual':
+                # Residual layer
+                net = nf.nets.LipschitzMLP([latent_size] + [hidden_units] * hidden_layers + [latent_size],
+                                           init_zeros=init_zeros, lipschitz_const=lipschitz_const)
+                flows += [nf.flows.Residual(net, reduce_memory=True)]
 
             # Permutation
-            if config['model']['permutation'] == 'affine':
-                flows += [nf.flows.InvertibleAffine(latent_size)]
-            else:
-                flows += [nf.flows.Permute(latent_size, config['model']['permutation'])]
+            if self.flow_type == 'rnvp':
+                if config['model']['permutation'] == 'affine':
+                    flows += [nf.flows.InvertibleAffine(latent_size)]
+                else:
+                    flows += [nf.flows.Permute(latent_size, config['model']['permutation'])]
 
             # ActNorm
             if config['model']['actnorm']:

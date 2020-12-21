@@ -207,6 +207,10 @@ for it in range(start_iter, max_iter):
         loss.backward()
         optimizer.step()
 
+    # Update Lipschitz constant if flows are residual
+    if model.flow_type == 'residual':
+        nf.utils.update_lipschitz(model, 5)
+
     # Perform ema
     if ema:
         ema_model.update_parameters(model)
