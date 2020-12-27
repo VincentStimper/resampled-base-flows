@@ -45,6 +45,7 @@ model:                              # Properties of the model
 
 
 training:                           # Properties of the training procedure
+  objective: fkld                   # Objective to be used for training, can be fkld or rkld
   max_iter: 15000                   # Int, maximum number of iteration
   warmup_iter: 1000                 # Int, number of iterations of linearly warm up learning rate
   batch_size: 256                   # Int, batch size used during training

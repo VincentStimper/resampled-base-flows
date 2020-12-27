@@ -73,6 +73,7 @@ else:
 
 # Train model
 max_iter = config['training']['max_iter']
+objective = 'fkld' if not 'objective' in config['training'] else 'rkld'
 n_data = len(training_data)
 log_iter = config['training']['log_iter']
 checkpoint_iter = config['training']['checkpoint_iter']
@@ -191,16 +192,22 @@ train_iter = iter(train_loader)
 start_time = time()
 
 for it in range(start_iter, max_iter):
-    # Get batch from dataset
-    try:
-        x = next(train_iter)
-    except StopIteration:
-        train_iter = iter(train_loader)
-        x = next(train_iter)
-    x = x.to(device, non_blocking=True)
-
     # Get loss
-    loss = model.forward_kld(x)
+    if objective == 'fkld':
+        # Get batch from dataset
+        try:
+            x = next(train_iter)
+        except StopIteration:
+            train_iter = iter(train_loader)
+            x = next(train_iter)
+        x = x.to(device, non_blocking=True)
+
+        loss = model.forward_kld(x)
+    elif objective == 'rkld':
+        loss = model.reverse_kld_cov(batch_size)
+    else:
+        raise NotImplementedError('The objective ' + objective
+                                  + ' is not implemented.')
 
     # Make step
     if not torch.isnan(loss) and not torch.isinf(loss):
