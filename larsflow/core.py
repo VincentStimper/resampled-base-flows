@@ -360,7 +360,8 @@ class BoltzmannGenerator(NormalizingFlow):
                         energy_cut=energy_cut, energy_max=energy_max, transform=transform)
 
         # Set up parameters for flow layers
-        self.flow_type = config['model']['flow_type']
+        self.flow_type = 'rnvp' if not 'flow_type' in config['model'] \
+            else config['model']['flow_type']
         hidden_units = config['model']['hidden_units']
         hidden_layers = config['model']['hidden_layers']
         # Get parameters specific to flow type
