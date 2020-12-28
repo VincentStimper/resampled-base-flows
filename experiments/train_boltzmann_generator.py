@@ -199,7 +199,7 @@ for it in range(start_iter, max_iter):
 
         loss = model.forward_kld(x)
     elif objective == 'rkld':
-        loss = model.reverse_kld_cov(batch_size)
+        loss = model.reverse_kld(batch_size)
     else:
         raise NotImplementedError('The objective ' + objective
                                   + ' is not implemented.')
