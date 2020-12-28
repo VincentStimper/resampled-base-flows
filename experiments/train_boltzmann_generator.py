@@ -11,14 +11,13 @@ import argparse
 import os
 from time import time
 
-
 # Parse input arguments
 parser = argparse.ArgumentParser(description='Train Boltzmann Generator with varying '
                                              'base distribution')
 
 parser.add_argument('--config', type=str, default='../config/bm.yaml',
                     help='Path config file specifying model '
-                         'architecture and training procedure',)
+                         'architecture and training procedure', )
 parser.add_argument("--resume", action="store_true",
                     help='Flag whether to resume training')
 parser.add_argument("--tlimit", type=float, default=None,
@@ -31,10 +30,8 @@ parser.add_argument('--precision', type=str, default='float',
 
 args = parser.parse_args()
 
-
 # Load config
 config = lf.utils.get_config(args.config)
-
 
 # Create model
 model = lf.BoltzmannGenerator(config)
@@ -47,7 +44,6 @@ if args.precision == 'double':
     model = model.double()
 else:
     model = model.float()
-
 
 # Load data
 path = config['data_path']['train']
@@ -109,7 +105,7 @@ lr_warmup = 'warmup_iter' in config['training'] \
             and config['training']['warmup_iter'] is not None
 if lr_warmup:
     warmup_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer,
-                            lambda s: min(1., s / config['training']['warmup_iter']))
+                                                         lambda s: min(1., s / config['training']['warmup_iter']))
 lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizer,
                                                       gamma=config['training']['rate_decay'])
 
@@ -186,7 +182,6 @@ train_loader = torch.utils.data.DataLoader(training_data, batch_size=batch_size,
                                            shuffle=True, pin_memory=True,
                                            drop_last=True, num_workers=4)
 train_iter = iter(train_loader)
-
 
 # Start training
 start_time = time()
@@ -321,7 +316,9 @@ for it in range(start_iter, max_iter):
             # Reset model to train mode
             ema_model.train()
 
-        # End job if necessary
-        if args.tlimit is not None and (time() - start_time) / 3600 > args.tlimit:
+    # End job if necessary
+    if it % checkpoint_iter == 0 and args.tlimit is not None:
+        time_past = (time() - start_time) / 3600
+        num_cp = (it + 1 - start_iter) / checkpoint_iter
+        if num_cp > .5 and time_past * (1 + 1 / num_cp) > args.tlimit:
             break
-    
