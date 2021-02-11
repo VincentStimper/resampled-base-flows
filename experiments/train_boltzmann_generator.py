@@ -95,10 +95,17 @@ lr = config['training']['learning_rate']
 weight_decay = config['training']['weight_decay']
 optimizer_name = 'adam' if not 'optimizer' in config['training'] \
     else config['training']['optimizer']
+if 'q0_iter' in config['training'] and config['training']['q0_iter'] is not None:
+    q0_pretrain = True
+    q0_iter = config['training']['q0_iter']
+    optimizer_param = model.q0.parameters()
+else:
+    q0_pretrain = False
+    optimizer_param = model.parameters()
 if optimizer_name == 'adam':
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    optimizer = torch.optim.Adam(optimizer_param, lr=lr, weight_decay=weight_decay)
 elif optimizer_name == 'adamax':
-    optimizer = torch.optim.Adamax(model.parameters(), lr=lr, weight_decay=weight_decay)
+    optimizer = torch.optim.Adamax(optimizer_param, lr=lr, weight_decay=weight_decay)
 else:
     raise NotImplementedError('The optimizer ' + optimizer_name + ' is not implemented.')
 lr_warmup = 'warmup_iter' in config['training'] \
@@ -133,6 +140,13 @@ if args.resume:
         start_iter = int(latest_cp[-10:-3])
         optimizer_path = os.path.join(cp_dir, 'optimizer.pt')
         if os.path.exists(optimizer_path):
+            if q0_pretrain and start_iter >= q0_iter:
+                if optimizer_name == 'adam':
+                    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+                elif optimizer_name == 'adamax':
+                    optimizer = torch.optim.Adamax(model.parameters(), lr=lr, weight_decay=weight_decay)
+                else:
+                    raise NotImplementedError('The optimizer ' + optimizer_name + ' is not implemented.')
             optimizer.load_state_dict(torch.load(optimizer_path))
         warmup_scheduler_path = os.path.join(cp_dir, 'warmup_scheduler.pt')
         if os.path.exists(warmup_scheduler_path):
@@ -231,6 +245,15 @@ for it in range(start_iter, max_iter):
     # Update lr scheduler
     if (it + 1) % config['training']['decay_iter'] == 0:
         lr_scheduler.step()
+
+    # End q0 pretraining
+    if q0_pretrain and it == q0_iter:
+        if optimizer_name == 'adam':
+            optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+        elif optimizer_name == 'adamax':
+            optimizer = torch.optim.Adamax(model.parameters(), lr=lr, weight_decay=weight_decay)
+        else:
+            raise NotImplementedError('The optimizer ' + optimizer_name + ' is not implemented.')
 
     # Save loss
     if (it + 1) % log_iter == 0:
