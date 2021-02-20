@@ -241,6 +241,9 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=100,
             plt.savefig(save_path + '_' + label[i] + '.png', dpi=300)
             plt.close()
 
+        # Remove variables
+        del x, z, transform, training_data
+
         return (kld_cart, kld_bond, kld_angle, kld_dih)
 
 

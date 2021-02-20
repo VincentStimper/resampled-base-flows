@@ -246,6 +246,9 @@ for it in range(start_iter, max_iter):
     if (it + 1) % config['training']['decay_iter'] == 0:
         lr_scheduler.step()
 
+    # Delete variables to prevent out of memory errors
+    del x, loss
+
     # End q0 pretraining
     if q0_pretrain and it == q0_iter:
         if optimizer_name == 'adam':
@@ -259,6 +262,8 @@ for it in range(start_iter, max_iter):
     if (it + 1) % log_iter == 0:
         np.savetxt(os.path.join(log_dir, 'loss.csv'), loss_hist,
                    delimiter=',', header='it,loss', comments='')
+        if use_gpu:
+            torch.cuda.empty_cache()
 
     if (it + 1) % checkpoint_iter == 0:
         # Save checkpoint
