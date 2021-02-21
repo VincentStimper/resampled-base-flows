@@ -33,6 +33,10 @@ args = parser.parse_args()
 # Load config
 config = lf.utils.get_config(args.config)
 
+# Set seed
+if 'seed' in config['training'] and config['training']['seed'] is not None:
+    torch.manual_seed(config['training']['seed'])
+
 # Create model
 model = lf.BoltzmannGenerator(config)
 
