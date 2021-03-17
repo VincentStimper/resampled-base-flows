@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 
+import matplotlib as mpl
 from matplotlib import pyplot as plt
 
 import yaml
@@ -165,29 +166,36 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=100,
 
     # Get test data
     z_d_np = test_data.cpu().data.numpy()
+    x_d_np = np.zeros(0, 66)
 
     # Determine likelihood of test data
     log_p_sum = 0
     for i in range(int(np.floor((len(test_data) - 1) / n_samples))):
         z = test_data[(i * n_samples):((i + 1) * n_samples), :]
-        _, log_det = transform(z.cpu().double())
+        x, log_det = transform(z.cpu().double())
+        x_d_np = np.concatenate((x_d_np, x.data.numpy()))
         log_p = model.log_prob(test_data[(i * n_samples):((i + 1) * n_samples), :])
         log_p_sum = log_p_sum + torch.sum(log_p) - torch.sum(log_det).float()
+    z = test_data[((i + 1) * n_samples):, :]
+    x, log_det = transform(z.cpu().double())
+    x_d_np = np.concatenate((x_d_np, x.data.numpy()))
     log_p = model.log_prob(test_data[((i + 1) * n_samples):, :])
     log_p_sum = log_p_sum + torch.sum(log_p)
-    log_p_avg = log_p_sum.data
+    log_p_avg = log_p_sum.cpu().data.numpy()
 
     # Draw samples
 
     z_np = np.zeros((0, 60))
+    x_np = np.zeros((0, 60))
 
     for i in range(n_batches):
         z, _ = model.sample(n_samples)
         x, _ = transform(z.cpu().double())
+        x_np = np.concatenate((x_np, x.data.numpy()))
         z, _ = transform.inverse(x)
         z_np = np.concatenate((z_np, z.data.numpy()))
 
-    # Estimate density
+    # Estimate density of marginals
     nbins = 200
     hist_range = [-5, 5]
     ndims = z_np.shape[1]
@@ -198,11 +206,10 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=100,
     for i in range(ndims):
         htest, _ = np.histogram(z_d_np[:, i], nbins, range=hist_range, density=True);
         hgen, _ = np.histogram(z_np[:, i], nbins, range=hist_range, density=True);
-
         hists_test[:, i] = htest
         hists_gen[:, i] = hgen
 
-    # Compute KLD
+    # Compute KLD of marginals
     eps = 1e-10
     kld_unscaled = np.sum(hists_test * np.log((hists_test + eps) / (hists_gen + eps)), axis=0)
     kld = kld_unscaled * (hist_range[1] - hist_range[0]) / nbins
@@ -221,6 +228,28 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=100,
     kld_angle = kld_[angle_ind]
     kld_dih = kld_[dih_ind]
 
+    # Compute Ramachandran plot angles
+    test_traj = mdtraj.Trajectory(x_d_np.reshape(-1, 22, 3), traj.top)
+    sampled_traj = mdtraj.Trajectory(x_np.reshape(-1, 22, 3), traj.top)
+    psi_d = mdtraj.compute_psi(test_traj)[1].reshape(-1)
+    psi_d[np.isnan(psi_d)] = 0
+    phi_d = mdtraj.compute_phi(test_traj)[1].reshape(-1)
+    phi_d[np.isnan(phi_d)] = 0
+    psi = mdtraj.compute_psi(sampled_traj)[1].reshape(-1)
+    psi[np.isnan(psi)] = 0
+    phi = mdtraj.compute_phi(sampled_traj)[1].reshape(-1)
+    phi[np.isnan(phi)] = 0
+
+    # Compute KLD of Ramachandran plot angles
+    nbins = 64
+    eps = 1e-10
+    hist_test = np.histogram2d(phi_d, psi_d, nbins, density=True,
+                               range=[[-np.pi, np.pi], [-np.pi, np.pi]])[0]
+    hist_gen = np.histogram2d(phi, psi, nbins, density=True,
+                              range=[[-np.pi, np.pi], [-np.pi, np.pi]])[0]
+    kld_ram = np.sum(hist_test * np.log(hist_test + eps) / np.log(hist_gen + eps)) * 4 * np.pi ** 2 / nbins ** 2
+
+    # Create plots
     if save_path is not None:
         # Histograms of the groups
         hists_test_cart = hists_test[:, :(3 * ncarts - 6)]
@@ -252,13 +281,23 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=100,
             for j in range(hists_test_list[i].shape[1]):
                 ax[j // 3, j % 3].plot(x, hists_test_list[i][:, j])
                 ax[j // 3, j % 3].plot(x, hists_gen_list[i][:, j])
-            plt.savefig(save_path + '_' + label[i] + '.png', dpi=300)
+            plt.savefig(save_path + '_marginals_' + label[i] + '.png', dpi=300)
             plt.close()
 
-        # Remove variables
-        del x, z, transform, training_data
+        # Ramachandran plot
+        plt.figure(figsize=(10, 10))
+        plt.hist2d(phi[i, :], psi[i, :], bins=64, norm=mpl.colors.LogNorm())
+        plt.xticks(fontsize=20)
+        plt.yticks(fontsize=20)
+        plt.xlabel('$\phi$', fontsize=24)
+        plt.ylabel('$\psi$', fontsize=24)
+        plt.savefig(save_path + '_ramachandran.png', dpi=300)
+        plt.close()
 
-        return (kld_cart, kld_bond, kld_angle, kld_dih)
+    # Remove variables
+    del x, z, transform, training_data
+
+    return ((kld_cart, kld_bond, kld_angle, kld_dih), kld_ram, log_p_avg)
 
 
 

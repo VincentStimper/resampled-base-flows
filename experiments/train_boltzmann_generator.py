@@ -88,7 +88,9 @@ for dir in [cp_dir, plot_dir, log_dir]:
 
 # Init logs
 loss_hist = np.zeros((0, 2))
+log_p_hist = np.zeros((0, 2))
 kld_hist = np.zeros((0, 3))
+kld_ram_hist = np.zeros((0, 2))
 kld_cart_hist = np.zeros((0, 12))
 kld_bond_hist = np.zeros((0, 20))
 kld_angle_hist = np.zeros((0, 20))
@@ -280,12 +282,12 @@ for it in range(start_iter, max_iter):
 
         # Evaluate model and save plots
         model.eval()
-        kld = lf.utils.evaluateAldp(model, test_data,
-                                    save_path=os.path.join(plot_dir, 'marginals_%07i' % (it + 1)),
-                                    data_path=config['data_path']['transform'])
+        kld, kld_ram, log_p_avg = lf.utils.evaluateAldp(model, test_data,
+                                                        save_path=os.path.join(plot_dir, '%07i' % (it + 1)),
+                                                        data_path=config['data_path']['transform'])
         model.train()
 
-        # Calculate and save KLD stats
+        # Calculate and save KLD stats of marginals
         kld_ = np.concatenate(kld)
         kld_append = np.array([[it + 1, np.median(kld_), np.mean(kld_)]])
         kld_hist = np.concatenate([kld_hist, kld_append])
@@ -302,6 +304,14 @@ for it in range(start_iter, max_iter):
                 header += ',kld' + str(kld_ind)
             np.savetxt(os.path.join(log_dir, 'kld_' + kld_label + '.csv'), kld_hist_,
                        delimiter=',', header=header, comments='')
+
+        # Save KLD of Ramachandran and log_p
+        kld_ram_hist = np.concatenate(np.array([[it + 1, kld_ram]]))
+        np.savetxt(os.path.join(log_dir, 'kld_ram.csv'), kld_ram_hist,
+                   delimiter=',', header=header, comments='')
+        log_p_hist = np.concatenate(np.array([[it + 1, log_p_avg]]))
+        np.savetxt(os.path.join(log_dir, 'log_p_test.csv'), log_p_hist,
+                   delimiter=',', header=header, comments='')
 
         # Evaluate ema model
         if ema:
