@@ -285,7 +285,7 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=1000,
 
         # Ramachandran plot
         plt.figure(figsize=(10, 10))
-        plt.hist2d(phi[i, :], psi[i, :], bins=64, norm=mpl.colors.LogNorm())
+        plt.hist2d(phi, psi, bins=64, norm=mpl.colors.LogNorm())
         plt.xticks(fontsize=20)
         plt.yticks(fontsize=20)
         plt.xlabel('$\phi$', fontsize=24)
