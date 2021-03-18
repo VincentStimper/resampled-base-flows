@@ -106,7 +106,7 @@ class ToDouble():
         return x.double()
 
 
-def evaluateAldp(model, test_data, n_samples=1000, n_batches=100,
+def evaluateAldp(model, test_data, n_samples=1000, n_batches=1000,
                  save_path=None, data_path='.'):
     """
     Evaluate model of the Boltzmann distribution of the Alanine
@@ -176,12 +176,12 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=100,
         x, log_det = transform(z.cpu().double())
         x_d_np = np.concatenate((x_d_np, x.data.numpy()))
         log_p = model.log_prob(z.to(model_device))
-        log_p_sum = log_p_sum + torch.sum(log_p) - torch.sum(log_det).float()
+        log_p_sum = log_p_sum + torch.sum(log_p).detach() - torch.sum(log_det).detach().float()
     z = test_data[((i + 1) * n_samples):, :]
     x, log_det = transform(z.cpu().double())
     x_d_np = np.concatenate((x_d_np, x.data.numpy()))
-    log_p = model.log_prob(test_data[((i + 1) * n_samples):, :])
-    log_p_sum = log_p_sum + torch.sum(log_p)
+    log_p = model.log_prob(z.to(model_device))
+    log_p_sum = log_p_sum + torch.sum(log_p).detach() - torch.sum(log_det).detach().float()
     log_p_avg = log_p_sum.cpu().data.numpy()
 
     # Draw samples
