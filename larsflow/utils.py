@@ -244,10 +244,10 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=1000,
     # Compute KLD of Ramachandran plot angles
     nbins = 64
     eps = 1e-10
-    hist_test = np.histogram2d(phi_d, psi_d, nbins, density=True,
-                               range=[[-np.pi, np.pi], [-np.pi, np.pi]])[0]
-    hist_gen = np.histogram2d(phi, psi, nbins, density=True,
-                              range=[[-np.pi, np.pi], [-np.pi, np.pi]])[0]
+    hist_test = np.histogram2d(phi_d, psi_d, nbins, range=[[-np.pi, np.pi], [-np.pi, np.pi]],
+                               density=True)[0]
+    hist_gen = np.histogram2d(phi, psi, nbins, range=[[-np.pi, np.pi], [-np.pi, np.pi]],
+                              density=True)[0]
     kld_ram = np.sum(hist_test * np.log(hist_test + eps) / np.log(hist_gen + eps)) * 4 * np.pi ** 2 / nbins ** 2
 
     # Create plots
