@@ -242,17 +242,16 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=1000,
     phi[np.isnan(phi)] = 0
 
     # Compute KLD of Ramachandran plot angles
-    nbins = 64
-    eps = 1e-10
-    hist_ram_test = np.histogram2d(phi_d, psi_d, nbins, range=[[-np.pi, np.pi], [-np.pi, np.pi]])[0]
-    hist_ram_gen = np.histogram2d(phi, psi, nbins, range=[[-np.pi, np.pi], [-np.pi, np.pi]])[0]
-    kld_ram = np.sum(hist_ram_test * np.log(hist_ram_test + eps) / np.log(hist_ram_gen + eps)) / len(phi)
+    nbins_ram = 64
+    eps_ram = 1e-10
+    hist_ram_test = np.histogram2d(phi_d, psi_d, nbins_ram, range=[[-np.pi, np.pi], [-np.pi, np.pi]])[0]
+    hist_ram_gen = np.histogram2d(phi, psi, nbins_ram, range=[[-np.pi, np.pi], [-np.pi, np.pi]])[0]
+    kld_ram = np.sum(hist_ram_test * np.log(hist_ram_test + eps_ram) / np.log(hist_ram_gen + eps_ram)) / len(phi)
 
     # Create plots
     if save_path is not None:
         # Histograms of the groups
         hists_test_cart = hists_test[:, :(3 * ncarts - 6)]
-        print(hists_test.shape)
         hists_test_ = np.concatenate([hists_test[:, :(3 * ncarts - 6)], np.zeros((nbins, 6)),
                                       hists_test[:, (3 * ncarts - 6):]], axis=1)
         hists_test_ = hists_test_[:, permute_inv]
