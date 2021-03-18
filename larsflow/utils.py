@@ -170,7 +170,7 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=100,
 
     # Determine likelihood of test data
     log_p_sum = 0
-    model_device = model.device
+    model_device = model.q0.loc.device
     for i in range(int(np.floor((len(test_data) - 1) / n_samples))):
         z = test_data[(i * n_samples):((i + 1) * n_samples), :]
         x, log_det = transform(z.cpu().double())
