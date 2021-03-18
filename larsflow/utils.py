@@ -252,6 +252,7 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=1000,
     if save_path is not None:
         # Histograms of the groups
         hists_test_cart = hists_test[:, :(3 * ncarts - 6)]
+        print(hists_test.shape)
         hists_test_ = np.concatenate([hists_test[:, :(3 * ncarts - 6)], np.zeros((nbins, 6)),
                                       hists_test[:, (3 * ncarts - 6):]], axis=1)
         hists_test_ = hists_test_[:, permute_inv]
