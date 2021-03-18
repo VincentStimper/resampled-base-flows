@@ -187,7 +187,7 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=1000,
     # Draw samples
 
     z_np = np.zeros((0, 60))
-    x_np = np.zeros((0, 60))
+    x_np = np.zeros((0, 66))
 
     for i in range(n_batches):
         z, _ = model.sample(n_samples)
