@@ -170,11 +170,12 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=100,
 
     # Determine likelihood of test data
     log_p_sum = 0
+    model_device = model.device
     for i in range(int(np.floor((len(test_data) - 1) / n_samples))):
         z = test_data[(i * n_samples):((i + 1) * n_samples), :]
         x, log_det = transform(z.cpu().double())
         x_d_np = np.concatenate((x_d_np, x.data.numpy()))
-        log_p = model.log_prob(test_data[(i * n_samples):((i + 1) * n_samples), :])
+        log_p = model.log_prob(z.to(model_device))
         log_p_sum = log_p_sum + torch.sum(log_p) - torch.sum(log_det).float()
     z = test_data[((i + 1) * n_samples):, :]
     x, log_det = transform(z.cpu().double())
