@@ -166,7 +166,7 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=100,
 
     # Get test data
     z_d_np = test_data.cpu().data.numpy()
-    x_d_np = np.zeros(0, 66)
+    x_d_np = np.zeros((0, 66))
 
     # Determine likelihood of test data
     log_p_sum = 0
