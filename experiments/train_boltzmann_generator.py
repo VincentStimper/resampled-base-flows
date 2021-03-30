@@ -288,7 +288,6 @@ for it in range(start_iter, max_iter):
         model.train()
 
         # Calculate and save KLD stats of marginals
-        print(kld)
         kld_ = np.concatenate(kld)
         kld_append = np.array([[it + 1, np.median(kld_), np.mean(kld_)]])
         kld_hist = np.concatenate([kld_hist, kld_append])
@@ -328,7 +327,7 @@ for it in range(start_iter, max_iter):
                 ema_model.module.q0.estimate_Z(num_s, num_b)
 
             # Evaluate ema model and save plots
-            kld = lf.utils.evaluateAldp(ema_model.module, test_data,
+            kld, kld_ram, log_p_avg = lf.utils.evaluateAldp(ema_model.module, test_data,
                                         save_path=os.path.join(plot_dir, 'ema_marginals_%07i' % (it + 1)),
                                         data_path=config['data_path']['transform'])
 
@@ -351,6 +350,14 @@ for it in range(start_iter, max_iter):
                     header += ',kld' + str(kld_ind)
                 np.savetxt(os.path.join(log_dir, 'ema_kld_' + kld_label + '.csv'), kld_hist_,
                            delimiter=',', header=header, comments='')
+
+            # Save KLD of Ramachandran and log_p
+            kld_ram_hist = np.concatenate(np.array([[it + 1, kld_ram]]))
+            np.savetxt(os.path.join(log_dir, 'ema_kld_ram.csv'), kld_ram_hist,
+                       delimiter=',', header=header, comments='')
+            log_p_hist = np.concatenate(np.array([[it + 1, log_p_avg]]))
+            np.savetxt(os.path.join(log_dir, 'ema_log_p_test.csv'), log_p_hist,
+                       delimiter=',', header=header, comments='')
 
             # Save model
             torch.save(ema_model.state_dict(),
