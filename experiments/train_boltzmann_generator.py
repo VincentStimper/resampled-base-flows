@@ -288,6 +288,7 @@ for it in range(start_iter, max_iter):
         model.train()
 
         # Calculate and save KLD stats of marginals
+        print(kld)
         kld_ = np.concatenate(kld)
         kld_append = np.array([[it + 1, np.median(kld_), np.mean(kld_)]])
         kld_hist = np.concatenate([kld_hist, kld_append])
