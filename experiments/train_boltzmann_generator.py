@@ -356,11 +356,11 @@ for it in range(start_iter, max_iter):
                            delimiter=',', header=header, comments='')
 
             # Save KLD of Ramachandran and log_p
-            kld_ram_hist = np.concatenate(np.array([[it + 1, kld_ram]]))
-            np.savetxt(os.path.join(log_dir, 'ema_kld_ram.csv'), kld_ram_hist,
+            ema_kld_ram_hist = np.concatenate([ema_kld_ram_hist, np.array([[it + 1, kld_ram]])])
+            np.savetxt(os.path.join(log_dir, 'ema_kld_ram.csv'), ema_kld_ram_hist,
                        delimiter=',', header='it,kld', comments='')
-            log_p_hist = np.concatenate(np.array([[it + 1, log_p_avg]]))
-            np.savetxt(os.path.join(log_dir, 'ema_log_p_test.csv'), log_p_hist,
+            ema_log_p_hist = np.concatenate([ema_log_p_hist, np.array([[it + 1, log_p_avg]])])
+            np.savetxt(os.path.join(log_dir, 'ema_log_p_test.csv'), ema_log_p_hist,
                        delimiter=',', header='it,log_p', comments='')
 
             # Save model
