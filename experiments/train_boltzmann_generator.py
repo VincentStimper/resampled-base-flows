@@ -332,7 +332,7 @@ for it in range(start_iter, max_iter):
 
             # Evaluate ema model and save plots
             kld, kld_ram, log_p_avg = lf.utils.evaluateAldp(ema_model.module, test_data,
-                                        save_path=os.path.join(plot_dir, 'ema_marginals_%07i' % (it + 1)),
+                                        save_path=os.path.join(plot_dir, 'ema_%07i' % (it + 1)),
                                         data_path=config['data_path']['transform'])
 
             # Calculate and save KLD stats
