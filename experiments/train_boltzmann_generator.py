@@ -131,7 +131,9 @@ if ema:
         ema_beta * averaged_model_parameter + (1 - ema_beta) * model_parameter
     model.p = None
     ema_model = AveragedModel(model, avg_fn=ema_avg)
+    ema_log_p_hist = np.zeros((0, 2))
     ema_kld_hist = np.zeros((0, 3))
+    ema_kld_ram_hist = np.zeros((0, 2))
     ema_kld_cart_hist = np.zeros((0, 12))
     ema_kld_bond_hist = np.zeros((0, 20))
     ema_kld_angle_hist = np.zeros((0, 20))
@@ -158,9 +160,10 @@ if args.resume:
         if os.path.exists(warmup_scheduler_path):
             warmup_scheduler.load_state_dict(torch.load(warmup_scheduler_path))
         # Load logs
-        log_labels = ['loss', 'kld', 'kld_cart', 'kld_bond', 'kld_angle', 'kld_dih']
+        log_labels = ['loss', 'kld', 'kld_cart', 'kld_bond', 'kld_angle', 'kld_dih',
+                      'kld_ram', 'log_p_test']
         log_hists = [loss_hist, kld_hist, kld_cart_hist, kld_bond_hist, kld_angle_hist,
-                     kld_dih_hist]
+                     kld_dih_hist, kld_ram_hist, log_p_hist]
         for log_label, log_hist in zip(log_labels, log_hists):
             log_path = os.path.join(log_dir, log_label + '.csv')
             if os.path.exists(log_path):
@@ -177,9 +180,10 @@ if args.resume:
             if os.path.exists(ema_path):
                 ema_model.load_state_dict(torch.load(ema_path))
             log_labels = ['ema_kld', 'ema_kld_cart', 'ema_kld_bond', 'ema_kld_angle',
-                          'ema_kld_dih']
+                          'ema_kld_dih', 'ema_kld_ram', 'ema_log_p_test']
             log_hists = [ema_kld_hist, ema_kld_cart_hist, ema_kld_bond_hist,
-                         ema_kld_angle_hist, ema_kld_dih_hist]
+                         ema_kld_angle_hist, ema_kld_dih_hist, ema_kld_ram_hist,
+                         ema_log_p_hist]
             for log_label, log_hist in zip(log_labels, log_hists):
                 log_path = os.path.join(log_dir, log_label + '.csv')
                 if os.path.exists(log_path):
@@ -306,12 +310,12 @@ for it in range(start_iter, max_iter):
                        delimiter=',', header=header, comments='')
 
         # Save KLD of Ramachandran and log_p
-        kld_ram_hist = np.concatenate(np.array([[it + 1, kld_ram]]))
+        kld_ram_hist = np.concatenate([kld_ram_hist, np.array([[it + 1, kld_ram]])])
         np.savetxt(os.path.join(log_dir, 'kld_ram.csv'), kld_ram_hist,
-                   delimiter=',', header=header, comments='')
-        log_p_hist = np.concatenate(np.array([[it + 1, log_p_avg]]))
+                   delimiter=',', header='it,kld', comments='')
+        log_p_hist = np.concatenate([log_p_hist, np.array([[it + 1, log_p_avg]])])
         np.savetxt(os.path.join(log_dir, 'log_p_test.csv'), log_p_hist,
-                   delimiter=',', header=header, comments='')
+                   delimiter=',', header='it,log_p', comments='')
 
         # Evaluate ema model
         if ema:
@@ -354,10 +358,10 @@ for it in range(start_iter, max_iter):
             # Save KLD of Ramachandran and log_p
             kld_ram_hist = np.concatenate(np.array([[it + 1, kld_ram]]))
             np.savetxt(os.path.join(log_dir, 'ema_kld_ram.csv'), kld_ram_hist,
-                       delimiter=',', header=header, comments='')
+                       delimiter=',', header='it,kld', comments='')
             log_p_hist = np.concatenate(np.array([[it + 1, log_p_avg]]))
             np.savetxt(os.path.join(log_dir, 'ema_log_p_test.csv'), log_p_hist,
-                       delimiter=',', header=header, comments='')
+                       delimiter=',', header='it,log_p', comments='')
 
             # Save model
             torch.save(ema_model.state_dict(),
