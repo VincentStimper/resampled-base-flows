@@ -182,7 +182,7 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=1000,
     x_d_np = np.concatenate((x_d_np, x.data.numpy()))
     log_p = model.log_prob(z.to(model_device))
     log_p_sum = log_p_sum + torch.sum(log_p).detach() - torch.sum(log_det).detach().float()
-    log_p_avg = log_p_sum.cpu().data.numpy()
+    log_p_avg = log_p_sum.cpu().data.numpy() / len(test_data)
 
     # Draw samples
 
@@ -244,9 +244,12 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=1000,
     # Compute KLD of Ramachandran plot angles
     nbins_ram = 64
     eps_ram = 1e-10
-    hist_ram_test = np.histogram2d(phi_d, psi_d, nbins_ram, range=[[-np.pi, np.pi], [-np.pi, np.pi]])[0]
-    hist_ram_gen = np.histogram2d(phi, psi, nbins_ram, range=[[-np.pi, np.pi], [-np.pi, np.pi]])[0]
-    kld_ram = np.sum(hist_ram_test * np.log(hist_ram_test + eps_ram) / np.log(hist_ram_gen + eps_ram)) / len(phi)
+    hist_ram_test = np.histogram2d(phi_d, psi_d, nbins_ram,
+                                   range=[[-np.pi, np.pi], [-np.pi, np.pi]])[0]
+    hist_ram_gen = np.histogram2d(phi, psi, nbins_ram,
+                                  range=[[-np.pi, np.pi], [-np.pi, np.pi]])[0]
+    kld_ram = np.mean(hist_ram_test / len(phi) * np.log(hist_ram_test + eps_ram)
+                      / np.log(hist_ram_gen + eps_ram))
 
     # Create plots
     if save_path is not None:
