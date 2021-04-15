@@ -257,7 +257,9 @@ for it in range(start_iter, max_iter):
         lr_scheduler.step()
 
     # Delete variables to prevent out of memory errors
-    del x, loss
+    del loss
+    if objective == 'fkld':
+        del x
 
     # End q0 pretraining
     if q0_pretrain and it == q0_iter:
