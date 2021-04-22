@@ -129,7 +129,6 @@ if ema:
     ema_beta = config['training']['ema']
     ema_avg = lambda averaged_model_parameter, model_parameter, num_averaged: \
         ema_beta * averaged_model_parameter + (1 - ema_beta) * model_parameter
-    model.p = None
     ema_model = AveragedModel(model, avg_fn=ema_avg)
     ema_log_p_hist = np.zeros((0, 2))
     ema_kld_hist = np.zeros((0, 3))
