@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser(description='Train Boltzmann Generator with var
 
 parser.add_argument('--config', type=str, default='../config/bm.yaml',
                     help='Path config file specifying model '
-                         'architecture and training procedure', )
+                         'architecture and training procedure')
 parser.add_argument("--resume", action="store_true",
                     help='Flag whether to resume training')
 parser.add_argument("--tlimit", type=float, default=None,
