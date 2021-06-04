@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser(description='Train Boltzmann Generator with var
 
 parser.add_argument('--config', type=str, default='../config/bm.yaml',
                     help='Path config file specifying model '
-                         'architecture and training procedure', )
+                         'architecture and training procedure')
 parser.add_argument("--resume", action="store_true",
                     help='Flag whether to resume training')
 parser.add_argument("--tlimit", type=float, default=None,
@@ -32,6 +32,10 @@ args = parser.parse_args()
 
 # Load config
 config = lf.utils.get_config(args.config)
+
+# Set seed
+if 'seed' in config['training'] and config['training']['seed'] is not None:
+    torch.manual_seed(config['training']['seed'])
 
 # Create model
 model = lf.BoltzmannGenerator(config)
@@ -84,7 +88,9 @@ for dir in [cp_dir, plot_dir, log_dir]:
 
 # Init logs
 loss_hist = np.zeros((0, 2))
+log_p_hist = np.zeros((0, 2))
 kld_hist = np.zeros((0, 3))
+kld_ram_hist = np.zeros((0, 2))
 kld_cart_hist = np.zeros((0, 12))
 kld_bond_hist = np.zeros((0, 20))
 kld_angle_hist = np.zeros((0, 20))
@@ -95,10 +101,17 @@ lr = config['training']['learning_rate']
 weight_decay = config['training']['weight_decay']
 optimizer_name = 'adam' if not 'optimizer' in config['training'] \
     else config['training']['optimizer']
+if 'q0_iter' in config['training'] and config['training']['q0_iter'] is not None:
+    q0_pretrain = True
+    q0_iter = config['training']['q0_iter']
+    optimizer_param = model.q0.parameters()
+else:
+    q0_pretrain = False
+    optimizer_param = model.parameters()
 if optimizer_name == 'adam':
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    optimizer = torch.optim.Adam(optimizer_param, lr=lr, weight_decay=weight_decay)
 elif optimizer_name == 'adamax':
-    optimizer = torch.optim.Adamax(model.parameters(), lr=lr, weight_decay=weight_decay)
+    optimizer = torch.optim.Adamax(optimizer_param, lr=lr, weight_decay=weight_decay)
 else:
     raise NotImplementedError('The optimizer ' + optimizer_name + ' is not implemented.')
 lr_warmup = 'warmup_iter' in config['training'] \
@@ -116,9 +129,13 @@ if ema:
     ema_beta = config['training']['ema']
     ema_avg = lambda averaged_model_parameter, model_parameter, num_averaged: \
         ema_beta * averaged_model_parameter + (1 - ema_beta) * model_parameter
+    p_tmp = model.p
     model.p = None
     ema_model = AveragedModel(model, avg_fn=ema_avg)
+    model.p = p_tmp
+    ema_log_p_hist = np.zeros((0, 2))
     ema_kld_hist = np.zeros((0, 3))
+    ema_kld_ram_hist = np.zeros((0, 2))
     ema_kld_cart_hist = np.zeros((0, 12))
     ema_kld_bond_hist = np.zeros((0, 20))
     ema_kld_angle_hist = np.zeros((0, 20))
@@ -133,14 +150,22 @@ if args.resume:
         start_iter = int(latest_cp[-10:-3])
         optimizer_path = os.path.join(cp_dir, 'optimizer.pt')
         if os.path.exists(optimizer_path):
+            if q0_pretrain and start_iter >= q0_iter:
+                if optimizer_name == 'adam':
+                    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+                elif optimizer_name == 'adamax':
+                    optimizer = torch.optim.Adamax(model.parameters(), lr=lr, weight_decay=weight_decay)
+                else:
+                    raise NotImplementedError('The optimizer ' + optimizer_name + ' is not implemented.')
             optimizer.load_state_dict(torch.load(optimizer_path))
         warmup_scheduler_path = os.path.join(cp_dir, 'warmup_scheduler.pt')
         if os.path.exists(warmup_scheduler_path):
             warmup_scheduler.load_state_dict(torch.load(warmup_scheduler_path))
         # Load logs
-        log_labels = ['loss', 'kld', 'kld_cart', 'kld_bond', 'kld_angle', 'kld_dih']
+        log_labels = ['loss', 'kld', 'kld_cart', 'kld_bond', 'kld_angle', 'kld_dih',
+                      'kld_ram', 'log_p_test']
         log_hists = [loss_hist, kld_hist, kld_cart_hist, kld_bond_hist, kld_angle_hist,
-                     kld_dih_hist]
+                     kld_dih_hist, kld_ram_hist, log_p_hist]
         for log_label, log_hist in zip(log_labels, log_hists):
             log_path = os.path.join(log_dir, log_label + '.csv')
             if os.path.exists(log_path):
@@ -157,9 +182,10 @@ if args.resume:
             if os.path.exists(ema_path):
                 ema_model.load_state_dict(torch.load(ema_path))
             log_labels = ['ema_kld', 'ema_kld_cart', 'ema_kld_bond', 'ema_kld_angle',
-                          'ema_kld_dih']
+                          'ema_kld_dih', 'ema_kld_ram', 'ema_log_p_test']
             log_hists = [ema_kld_hist, ema_kld_cart_hist, ema_kld_bond_hist,
-                         ema_kld_angle_hist, ema_kld_dih_hist]
+                         ema_kld_angle_hist, ema_kld_dih_hist, ema_kld_ram_hist,
+                         ema_log_p_hist]
             for log_label, log_hist in zip(log_labels, log_hists):
                 log_path = os.path.join(log_dir, log_label + '.csv')
                 if os.path.exists(log_path):
@@ -232,10 +258,26 @@ for it in range(start_iter, max_iter):
     if (it + 1) % config['training']['decay_iter'] == 0:
         lr_scheduler.step()
 
+    # Delete variables to prevent out of memory errors
+    del loss
+    if objective == 'fkld':
+        del x
+
+    # End q0 pretraining
+    if q0_pretrain and it == q0_iter:
+        if optimizer_name == 'adam':
+            optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+        elif optimizer_name == 'adamax':
+            optimizer = torch.optim.Adamax(model.parameters(), lr=lr, weight_decay=weight_decay)
+        else:
+            raise NotImplementedError('The optimizer ' + optimizer_name + ' is not implemented.')
+
     # Save loss
     if (it + 1) % log_iter == 0:
         np.savetxt(os.path.join(log_dir, 'loss.csv'), loss_hist,
                    delimiter=',', header='it,loss', comments='')
+        if use_gpu:
+            torch.cuda.empty_cache()
 
     if (it + 1) % checkpoint_iter == 0:
         # Save checkpoint
@@ -248,12 +290,12 @@ for it in range(start_iter, max_iter):
 
         # Evaluate model and save plots
         model.eval()
-        kld = lf.utils.evaluateAldp(model, test_data,
-                                    save_path=os.path.join(plot_dir, 'marginals_%07i' % (it + 1)),
-                                    data_path=config['data_path']['transform'])
+        kld, kld_ram, log_p_avg = lf.utils.evaluateAldp(model, test_data,
+                                                        save_path=os.path.join(plot_dir, '%07i' % (it + 1)),
+                                                        data_path=config['data_path']['transform'])
         model.train()
 
-        # Calculate and save KLD stats
+        # Calculate and save KLD stats of marginals
         kld_ = np.concatenate(kld)
         kld_append = np.array([[it + 1, np.median(kld_), np.mean(kld_)]])
         kld_hist = np.concatenate([kld_hist, kld_append])
@@ -271,6 +313,14 @@ for it in range(start_iter, max_iter):
             np.savetxt(os.path.join(log_dir, 'kld_' + kld_label + '.csv'), kld_hist_,
                        delimiter=',', header=header, comments='')
 
+        # Save KLD of Ramachandran and log_p
+        kld_ram_hist = np.concatenate([kld_ram_hist, np.array([[it + 1, kld_ram]])])
+        np.savetxt(os.path.join(log_dir, 'kld_ram.csv'), kld_ram_hist,
+                   delimiter=',', header='it,kld', comments='')
+        log_p_hist = np.concatenate([log_p_hist, np.array([[it + 1, log_p_avg]])])
+        np.savetxt(os.path.join(log_dir, 'log_p_test.csv'), log_p_hist,
+                   delimiter=',', header='it,log_p', comments='')
+
         # Evaluate ema model
         if ema:
             # Set model to evaluation mode
@@ -285,8 +335,8 @@ for it in range(start_iter, max_iter):
                 ema_model.module.q0.estimate_Z(num_s, num_b)
 
             # Evaluate ema model and save plots
-            kld = lf.utils.evaluateAldp(ema_model.module, test_data,
-                                        save_path=os.path.join(plot_dir, 'ema_marginals_%07i' % (it + 1)),
+            kld, kld_ram, log_p_avg = lf.utils.evaluateAldp(ema_model.module, test_data,
+                                        save_path=os.path.join(plot_dir, 'ema_%07i' % (it + 1)),
                                         data_path=config['data_path']['transform'])
 
             # Calculate and save KLD stats
@@ -308,6 +358,14 @@ for it in range(start_iter, max_iter):
                     header += ',kld' + str(kld_ind)
                 np.savetxt(os.path.join(log_dir, 'ema_kld_' + kld_label + '.csv'), kld_hist_,
                            delimiter=',', header=header, comments='')
+
+            # Save KLD of Ramachandran and log_p
+            ema_kld_ram_hist = np.concatenate([ema_kld_ram_hist, np.array([[it + 1, kld_ram]])])
+            np.savetxt(os.path.join(log_dir, 'ema_kld_ram.csv'), ema_kld_ram_hist,
+                       delimiter=',', header='it,kld', comments='')
+            ema_log_p_hist = np.concatenate([ema_log_p_hist, np.array([[it + 1, log_p_avg]])])
+            np.savetxt(os.path.join(log_dir, 'ema_log_p_test.csv'), ema_log_p_hist,
+                       delimiter=',', header='it,log_p', comments='')
 
             # Save model
             torch.save(ema_model.state_dict(),

@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 
+import matplotlib as mpl
 from matplotlib import pyplot as plt
 
 import yaml
@@ -105,7 +106,7 @@ class ToDouble():
         return x.double()
 
 
-def evaluateAldp(model, test_data, n_samples=1000, n_batches=100,
+def evaluateAldp(model, test_data, n_samples=1000, n_batches=1000,
                  save_path=None, data_path='.'):
     """
     Evaluate model of the Boltzmann distribution of the Alanine
@@ -163,34 +164,55 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=100,
     transform = bg.flows.CoordinateTransform(training_data, ndim,
                                              z_matrix, cart_indices)
 
+    # Get test data
+    z_d_np = test_data.cpu().data.numpy()
+    x_d_np = np.zeros((0, 66))
+
+    # Determine likelihood of test data
+    log_p_sum = 0
+    model_device = model.q0.loc.device
+    for i in range(int(np.floor((len(test_data) - 1) / n_samples))):
+        z = test_data[(i * n_samples):((i + 1) * n_samples), :]
+        x, log_det = transform(z.cpu().double())
+        x_d_np = np.concatenate((x_d_np, x.data.numpy()))
+        log_p = model.log_prob(z.to(model_device))
+        log_p_sum = log_p_sum + torch.sum(log_p).detach() - torch.sum(log_det).detach().float()
+    z = test_data[((i + 1) * n_samples):, :]
+    x, log_det = transform(z.cpu().double())
+    x_d_np = np.concatenate((x_d_np, x.data.numpy()))
+    log_p = model.log_prob(z.to(model_device))
+    log_p_sum = log_p_sum + torch.sum(log_p).detach() - torch.sum(log_det).detach().float()
+    log_p_avg = log_p_sum.cpu().data.numpy() / len(test_data)
+
+    # Draw samples
+
     z_np = np.zeros((0, 60))
+    x_np = np.zeros((0, 66))
 
     for i in range(n_batches):
         z, _ = model.sample(n_samples)
         x, _ = transform(z.cpu().double())
+        x_np = np.concatenate((x_np, x.data.numpy()))
         z, _ = transform.inverse(x)
         z_np = np.concatenate((z_np, z.data.numpy()))
 
-    z_d_np = test_data.cpu().data.numpy()
-
-    # Estimate density
+    # Estimate density of marginals
     nbins = 200
     hist_range = [-5, 5]
     ndims = z_np.shape[1]
 
-    hists_train = np.zeros((nbins, ndims))
+    hists_test = np.zeros((nbins, ndims))
     hists_gen = np.zeros((nbins, ndims))
 
     for i in range(ndims):
-        htrain, _ = np.histogram(z_d_np[:, i], nbins, range=hist_range, density=True);
+        htest, _ = np.histogram(z_d_np[:, i], nbins, range=hist_range, density=True);
         hgen, _ = np.histogram(z_np[:, i], nbins, range=hist_range, density=True);
-
-        hists_train[:, i] = htrain
+        hists_test[:, i] = htest
         hists_gen[:, i] = hgen
 
-    # Compute KLD
+    # Compute KLD of marginals
     eps = 1e-10
-    kld_unscaled = np.sum(hists_train * np.log((hists_train + eps) / (hists_gen + eps)), axis=0)
+    kld_unscaled = np.sum(hists_test * np.log((hists_test + eps) / (hists_gen + eps)), axis=0)
     kld = kld_unscaled * (hist_range[1] - hist_range[0]) / nbins
 
     # Split KLD into groups
@@ -207,15 +229,38 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=100,
     kld_angle = kld_[angle_ind]
     kld_dih = kld_[dih_ind]
 
+    # Compute Ramachandran plot angles
+    test_traj = mdtraj.Trajectory(x_d_np.reshape(-1, 22, 3), traj.top)
+    sampled_traj = mdtraj.Trajectory(x_np.reshape(-1, 22, 3), traj.top)
+    psi_d = mdtraj.compute_psi(test_traj)[1].reshape(-1)
+    psi_d[np.isnan(psi_d)] = 0
+    phi_d = mdtraj.compute_phi(test_traj)[1].reshape(-1)
+    phi_d[np.isnan(phi_d)] = 0
+    psi = mdtraj.compute_psi(sampled_traj)[1].reshape(-1)
+    psi[np.isnan(psi)] = 0
+    phi = mdtraj.compute_phi(sampled_traj)[1].reshape(-1)
+    phi[np.isnan(phi)] = 0
+
+    # Compute KLD of Ramachandran plot angles
+    nbins_ram = 64
+    eps_ram = 1e-10
+    hist_ram_test = np.histogram2d(phi_d, psi_d, nbins_ram,
+                                   range=[[-np.pi, np.pi], [-np.pi, np.pi]])[0]
+    hist_ram_gen = np.histogram2d(phi, psi, nbins_ram,
+                                  range=[[-np.pi, np.pi], [-np.pi, np.pi]])[0]
+    kld_ram = np.mean(hist_ram_test / len(phi) * np.log(hist_ram_test + eps_ram)
+                      / np.log(hist_ram_gen + eps_ram))
+
+    # Create plots
     if save_path is not None:
         # Histograms of the groups
-        hists_train_cart = hists_train[:, :(3 * ncarts - 6)]
-        hists_train_ = np.concatenate([hists_train[:, :(3 * ncarts - 6)], np.zeros((nbins, 6)),
-                                       hists_train[:, (3 * ncarts - 6):]], axis=1)
-        hists_train_ = hists_train_[:, permute_inv]
-        hists_train_bond = hists_train_[:, bond_ind]
-        hists_train_angle = hists_train_[:, angle_ind]
-        hists_train_dih = hists_train_[:, dih_ind]
+        hists_test_cart = hists_test[:, :(3 * ncarts - 6)]
+        hists_test_ = np.concatenate([hists_test[:, :(3 * ncarts - 6)], np.zeros((nbins, 6)),
+                                      hists_test[:, (3 * ncarts - 6):]], axis=1)
+        hists_test_ = hists_test_[:, permute_inv]
+        hists_test_bond = hists_test_[:, bond_ind]
+        hists_test_angle = hists_test_[:, angle_ind]
+        hists_test_dih = hists_test_[:, dih_ind]
 
         hists_gen_cart = hists_gen[:, :(3 * ncarts - 6)]
         hists_gen_ = np.concatenate([hists_gen[:, :(3 * ncarts - 6)], np.zeros((nbins, 6)),
@@ -226,7 +271,7 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=100,
         hists_gen_dih = hists_gen_[:, dih_ind]
 
         label = ['cart', 'bond', 'angle', 'dih']
-        hists_train_list = [hists_train_cart, hists_train_bond, hists_train_angle, hists_train_dih]
+        hists_test_list = [hists_test_cart, hists_test_bond, hists_test_angle, hists_test_dih]
         hists_gen_list = [hists_gen_cart, hists_gen_bond, hists_gen_angle, hists_gen_dih]
         x = np.linspace(*hist_range, nbins)
         for i in range(4):
@@ -235,13 +280,26 @@ def evaluateAldp(model, test_data, n_samples=1000, n_batches=100,
             else:
                 fig, ax = plt.subplots(6, 3, figsize=(10, 20))
                 ax[5, 2].set_axis_off()
-            for j in range(hists_train_list[i].shape[1]):
-                ax[j // 3, j % 3].plot(x, hists_train_list[i][:, j])
+            for j in range(hists_test_list[i].shape[1]):
+                ax[j // 3, j % 3].plot(x, hists_test_list[i][:, j])
                 ax[j // 3, j % 3].plot(x, hists_gen_list[i][:, j])
-            plt.savefig(save_path + '_' + label[i] + '.png', dpi=300)
+            plt.savefig(save_path + '_marginals_' + label[i] + '.png', dpi=300)
             plt.close()
 
-        return (kld_cart, kld_bond, kld_angle, kld_dih)
+        # Ramachandran plot
+        plt.figure(figsize=(10, 10))
+        plt.hist2d(phi, psi, bins=64, norm=mpl.colors.LogNorm())
+        plt.xticks(fontsize=20)
+        plt.yticks(fontsize=20)
+        plt.xlabel('$\phi$', fontsize=24)
+        plt.ylabel('$\psi$', fontsize=24)
+        plt.savefig(save_path + '_ramachandran.png', dpi=300)
+        plt.close()
+
+    # Remove variables
+    del x, z, transform, training_data
+
+    return ((kld_cart, kld_bond, kld_angle, kld_dih), kld_ram, log_p_avg)
 
 
 
