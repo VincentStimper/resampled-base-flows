@@ -1,0 +1,38 @@
+# Config file specifying the setup and the training procedure
+# of the Glow model
+
+dataset:
+  name: cifar10           # Dataset to train on, can be cifar10
+  path: /cobra/u/vstimper/projects/resampled-base-flows/datasets
+  augment: True           # Flag if data augmentation shall be used
+  num_worker: 8           # Number of workers for data loading
+
+model:
+  base:                   # Base distributions of the flow model
+    type: gauss_channel   # Type of the base distributions
+    params: null          # Parameters to be provided
+  transform:              # Transform to be applied to the image
+    type: logit           # Type of the transformation
+    param: 0.05           # Parameters needed
+  levels: 3               # Number of levels of the multiscale architecture
+  blocks: 16              # Number of flow blocks per level
+  hidden_channels: 512    # Number of hidden channels in the ConvNet of the coupling layers
+  scale: True             # Flag whether to include scale parameter in coupling layers
+  split_mode: channel     # Method to split features in coupling layers
+  class_cond: False       # Flag whether model shall be class conditional
+  use_lu: True            # Flag whether to use LU decomposition in Inv1x1Conv layers
+
+training:
+  max_iter: 1000000       # Maximum number of iterations
+  optimizer: adamax       # Optimizer used for training
+  warmup_iter: 1000       # Number of iterations of linearly warm up learning rate
+  batch_size: 512         # Batch size for training and evalutation while training
+  lr: 1.e-3               # Learning rate
+  beta: 0.99
+  ema: 0.999              # Exponential Moving Average parameter
+  weight_decay: 1.e-5     # Weight decay parameter
+  cp_iter: 5000           # Number of iterations at which to save a checkpoint and samples
+  num_samples: 64         # Number of samples to generate and save per checkpoint
+  log_iter: 1000          # Number of iterations at which to save loss and bits per dim to file
+  save_root: /cobra/u/vstimper/projects/resampled-base-flows/experiments/glow/cifar10/seeded/g_16_1
+  seed: 1                 # Seed for training run
