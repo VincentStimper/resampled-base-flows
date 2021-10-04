@@ -192,7 +192,7 @@ for it in range(start_iter, max_iter):
     except StopIteration:
         train_iter = iter(train_loader)
         x = next(train_iter)
-    x = x.to(device)
+    x = x.to(device, non_blocking=True)
 
     loss = model.forward_kld(x)
 
