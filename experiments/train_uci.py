@@ -52,6 +52,7 @@ else:
 dataset_loader = lf.data.uci_loader[config['dataset']['name']]
 dataset_path = config['dataset']['path']
 training_data, test_data = dataset_loader(dataset_path)
+training_data, test_data = (training_data.to(device), test_data.to(device))
 if args.precision == 'double':
     training_data = training_data.double()
     test_data = test_data.double()
