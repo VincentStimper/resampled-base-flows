@@ -518,4 +518,4 @@ class UCIFlow(NormalizingFlow):
                 flows += [nf.flows.ActNorm(latent_size)]
 
         # Construct flow model
-        super().__init__(q0=q0, flows=flows, p=p)
+        super().__init__(q0=q0, flows=flows)
