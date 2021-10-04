@@ -4,9 +4,6 @@ import numpy as np
 import pandas as pd
 import torch
 
-uci_loader = {'miniboone': load_miniboone,
-              'hepmass': load_hepmass}
-
 
 def load_miniboone(path):
     """
@@ -90,3 +87,8 @@ def load_hepmass(path):
         [i for i in range(data_test.shape[1]) if i not in features_to_remove])]
 
     return torch.tensor(data_train), torch.tensor(data_test)
+
+
+# Dictonary of UCI data loaders
+uci_loader = {'miniboone': load_miniboone,
+              'hepmass': load_hepmass}
