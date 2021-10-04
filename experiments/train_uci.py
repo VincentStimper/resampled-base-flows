@@ -119,7 +119,7 @@ if ema:
 # Resume training if needed
 start_iter = 0
 if args.resume:
-    latest_cp = bg.utils.get_latest_checkpoint(cp_dir, 'model')
+    latest_cp = lf.utils.get_latest_checkpoint(cp_dir, 'model')
     if latest_cp is not None:
         model.load(latest_cp)
         start_iter = int(latest_cp[-10:-3])
