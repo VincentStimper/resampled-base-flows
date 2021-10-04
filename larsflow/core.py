@@ -430,3 +430,92 @@ class BoltzmannGenerator(NormalizingFlow):
 
         # Construct flow model
         super().__init__(q0=q0, flows=flows, p=p)
+
+
+class UCIFlow(NormalizingFlow):
+    """
+    Boltzmann Generator with architecture inspired by arXiv:2002.06707
+    """
+    def __init__(self, config):
+        """
+        Constructor
+        :param config: Dict, specified by a yaml file, see sample config file
+        """
+
+        self.config = config
+
+        # Set up model
+        # Define flows
+        blocks = config['model']['blocks']
+
+        # Set up parameters for flow layers
+        self.flow_type = 'rnvp' if not 'flow_type' in config['model'] \
+            else config['model']['flow_type']
+        hidden_units = config['model']['hidden_units']
+        hidden_layers = config['model']['hidden_layers']
+        # Get parameters specific to flow type
+        if self.flow_type == 'rnvp':
+            scale = True if config['model']['coupling'] == 'affine' else False
+            scale_map = 'exp' if not 'scale_map' in config['model'] \
+                else config['model']['scale_map']
+        elif self.flow_type == 'residual':
+            lipschitz_const = 0.9 if not 'lipschitz_const' in config['model'] \
+                else config['model']['lipschitz_const']
+        else:
+            raise NotImplementedError('The flow type ' + self.flow_type
+                                      + ' is not yet implemented.')
+        init_zeros = config['model']['init_zeros']
+
+        # Set up base distribution
+        latent_size = config['model']['latent_size']
+        if config['model']['base']['type'] == 'resampled':
+            T = config['model']['base']['params']['T']
+            eps = config['model']['base']['params']['eps']
+            a_hl = config['model']['base']['params']['a_hidden_layers']
+            a_hu = config['model']['base']['params']['a_hidden_units']
+            init_zeros_a = True if not 'init_zeros' in config['model']['base']['params'] \
+                else config['model']['base']['params']['init_zeros']
+            a = nf.nets.MLP([latent_size] + a_hl * [a_hu] + [1], output_fn="sigmoid",
+                            init_zeros=init_zeros_a)
+            q0 = distributions.ResampledGaussian(latent_size, a, T, eps,
+                                trainable=config['model']['base']['learn_mean_var'])
+        elif config['model']['base']['type'] == 'gauss':
+            q0 = nf.distributions.DiagGaussian(latent_size,
+                                trainable=config['model']['base']['learn_mean_var'])
+        elif config['model']['base']['type'] == 'gaussian_mixture':
+            q0 = nf.distributions.GaussianMixture(config['model']['base']['params']['n_modes'], latent_size,
+                                                  trainable=config['model']['base']['learn_mean_var'])
+        else:
+            raise NotImplementedError('The base distribution ' + config['model']['base']['type']
+                                      + ' is not implemented.')
+
+        # Set up flow layers
+        flows = []
+        for i in range(blocks):
+            # Transformation layer
+            if self.flow_type == 'rnvp':
+                # Coupling layer
+                param_map = nf.nets.MLP([(latent_size + 1) // 2] + hidden_layers * [hidden_units]
+                                        + [(latent_size // 2) * (2 if scale else 1)],
+                                        init_zeros=init_zeros)
+                flows += [nf.flows.AffineCouplingBlock(param_map, scale=scale,
+                                                       scale_map=scale_map)]
+            elif self.flow_type == 'residual':
+                # Residual layer
+                net = nf.nets.LipschitzMLP([latent_size] + [hidden_units] * hidden_layers + [latent_size],
+                                           init_zeros=init_zeros, lipschitz_const=lipschitz_const)
+                flows += [nf.flows.Residual(net, reduce_memory=True)]
+
+            # Permutation
+            if self.flow_type == 'rnvp':
+                if config['model']['permutation'] == 'affine':
+                    flows += [nf.flows.InvertibleAffine(latent_size)]
+                else:
+                    flows += [nf.flows.Permute(latent_size, config['model']['permutation'])]
+
+            # ActNorm
+            if config['model']['actnorm']:
+                flows += [nf.flows.ActNorm(latent_size)]
+
+        # Construct flow model
+        super().__init__(q0=q0, flows=flows, p=p)

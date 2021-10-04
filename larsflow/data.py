@@ -2,6 +2,11 @@ import os
 
 import numpy as np
 import pandas as pd
+import torch
+
+uci_loader = {'miniboone': load_miniboone,
+              'hepmass': load_hepmass}
+
 
 def load_miniboone(path):
     """
@@ -41,7 +46,7 @@ def load_miniboone(path):
     data_train = (data_train - mu) / s
     data_test = (data_test - mu) / s
 
-    return data_train, data_test
+    return torch.tensor(data_train), torch.tensor(data_test)
 
 
 def load_hepmass(path):
@@ -84,4 +89,4 @@ def load_hepmass(path):
     data_test = data_test[:, np.array(
         [i for i in range(data_test.shape[1]) if i not in features_to_remove])]
 
-    return data_train, data_test
+    return torch.tensor(data_train), torch.tensor(data_test)
