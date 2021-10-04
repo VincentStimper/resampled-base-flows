@@ -393,6 +393,9 @@ class BoltzmannGenerator(NormalizingFlow):
         elif config['model']['base']['type'] == 'gauss':
             q0 = nf.distributions.DiagGaussian(latent_size,
                                 trainable=config['model']['base']['learn_mean_var'])
+        elif config['model']['base']['type'] == 'gaussian_mixture':
+            q0 = nf.distributions.GaussianMixture(config['model']['base']['params']['n_modes'], latent_size,
+                                                  trainable=config['model']['base']['learn_mean_var'])
         else:
             raise NotImplementedError('The base distribution ' + config['model']['base']['type']
                                       + ' is not implemented.')
