@@ -4,7 +4,6 @@ import numpy as np
 from torch.optim.swa_utils import AveragedModel
 
 import larsflow as lf
-import boltzgen as bg
 import normflow as nf
 
 import argparse
