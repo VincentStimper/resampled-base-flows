@@ -15,7 +15,7 @@ model:                              # Properties of the model
     params: null
   flow_type: rnvp                   # String, flow type, can be rnvp or residual
   transform: False                  # Flag, if true, coordinate transform is added as last flow layer
-  latent_size: 60                   # Int, number of features in the latent space
+  latent_size: 32                   # Int, number of features in the latent space
   blocks: 16                        # Int, number of Real NVP blocks, consisting of an ActNorm layer
                                     # if specified, a permutation, and a affine coupling layer
   actnorm: True                     # Bool, flag whether to include an ActNorm layers

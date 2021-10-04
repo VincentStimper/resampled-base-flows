@@ -68,10 +68,9 @@ log_iter = config['training']['log_iter']
 checkpoint_iter = config['training']['checkpoint_iter']
 root = config['training']['save_root']
 cp_dir = os.path.join(root, 'checkpoints')
-plot_dir = os.path.join(root, 'plots')
 log_dir = os.path.join(root, 'log')
 # Create dirs if not existent
-for dir in [cp_dir, plot_dir, log_dir]:
+for dir in [cp_dir, log_dir]:
     if not os.path.isdir(dir):
         os.mkdir(dir)
 
