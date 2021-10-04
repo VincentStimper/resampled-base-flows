@@ -52,7 +52,6 @@ else:
 dataset_loader = lf.data.uci_loader[config['dataset']['name']]
 dataset_path = config['dataset']['path']
 training_data, test_data = dataset_loader(dataset_path)
-training_data, test_data = (training_data.to(device), test_data.to(device))
 if args.precision == 'double':
     training_data = training_data.double()
     test_data = test_data.double()
@@ -193,7 +192,7 @@ for it in range(start_iter, max_iter):
     except StopIteration:
         train_iter = iter(train_loader)
         x = next(train_iter)
-    x = x.to(device, non_blocking=True)
+    x = x.to(device)
 
     loss = model.forward_kld(x)
 
@@ -258,6 +257,7 @@ for it in range(start_iter, max_iter):
         model.eval()
         log_p_sum = 0
         for x in iter(test_loader):
+            x = x.to(device)
             log_p = model.log_prob(x)
             log_p_sum += torch.sum(log_p.detach())
         model.train()
@@ -283,6 +283,7 @@ for it in range(start_iter, max_iter):
 
             log_p_sum = 0
             for x in iter(test_loader):
+                x = x.to(device)
                 log_p = model.log_prob(x)
                 log_p_sum += torch.sum(log_p.detach())
             log_p_avg = log_p_sum / len(test_data)
