@@ -51,18 +51,20 @@ else:
 # Load data
 dataset_loader = lf.data.uci_loader[config['dataset']['name']]
 dataset_path = config['dataset']['path']
-training_data, test_data = dataset_loader(dataset_path)
+data_train, data_validate, data_test = dataset_loader(dataset_path)
 if args.precision == 'double':
-    training_data = training_data.double()
-    test_data = test_data.double()
+    data_train = data_train.double()
+    data_validate = data_validate.double()
+    data_test = data_test.double()
 else:
-    training_data = training_data.float()
-    test_data = test_data.float()
+    data_train = data_train.float()
+    data_validate = data_validate.float()
+    data_test = data_test.float()
 
 # Train model
 max_iter = config['training']['max_iter']
 objective = 'fkld' if not 'objective' in config['training'] else 'rkld'
-n_data = len(training_data)
+n_data = len(data_train)
 log_iter = config['training']['log_iter']
 checkpoint_iter = config['training']['checkpoint_iter']
 root = config['training']['save_root']
@@ -75,7 +77,8 @@ for dir in [cp_dir, log_dir]:
 
 # Init logs
 loss_hist = np.zeros((0, 2))
-log_p_hist = np.zeros((0, 2))
+log_p_test_hist = np.zeros((0, 2))
+log_p_validate_hist = np.zeros((0, 2))
 
 # Initialize optimizer and its parameters
 lr = config['training']['learning_rate']
@@ -114,7 +117,8 @@ if ema:
     model.p = None
     ema_model = AveragedModel(model, avg_fn=ema_avg)
     model.p = p_tmp
-    ema_log_p_hist = np.zeros((0, 2))
+    ema_log_p_test_hist = np.zeros((0, 2))
+    ema_log_p_validate_hist = np.zeros((0, 2))
 
 # Resume training if needed
 start_iter = 0
@@ -137,8 +141,8 @@ if args.resume:
         if os.path.exists(warmup_scheduler_path):
             warmup_scheduler.load_state_dict(torch.load(warmup_scheduler_path))
         # Load logs
-        log_labels = ['loss', 'log_p_test']
-        log_hists = [loss_hist, log_p_hist]
+        log_labels = ['loss', 'log_p_test', 'log_p_validate']
+        log_hists = [loss_hist, log_p_test_hist, log_p_validate_hist]
         for log_label, log_hist in zip(log_labels, log_hists):
             log_path = os.path.join(log_dir, log_label + '.csv')
             if os.path.exists(log_path):
@@ -154,8 +158,8 @@ if args.resume:
             ema_path = os.path.join(cp_dir, 'ema_model_%07i.pt' % start_iter)
             if os.path.exists(ema_path):
                 ema_model.load_state_dict(torch.load(ema_path))
-            log_labels = ['ema_log_p_test']
-            log_hists = [ema_log_p_hist]
+            log_labels = ['ema_log_p_test', 'ema_log_p_validate']
+            log_hists = [ema_log_p_test_hist, ema_log_p_validate_hist]
             for log_label, log_hist in zip(log_labels, log_hists):
                 log_path = os.path.join(log_dir, log_label + '.csv')
                 if os.path.exists(log_path):
@@ -174,11 +178,14 @@ if start_iter > 0:
 
 # Get data loader
 batch_size = config['training']['batch_size']
-train_loader = torch.utils.data.DataLoader(training_data, batch_size=batch_size,
+train_loader = torch.utils.data.DataLoader(data_train, batch_size=batch_size,
                                            shuffle=True, pin_memory=True,
                                            drop_last=True, num_workers=4)
 train_iter = iter(train_loader)
-test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size,
+validate_loader = torch.utils.data.DataLoader(data_validate, batch_size=batch_size,
+                                              shuffle=False, pin_memory=True,
+                                              drop_last=False, num_workers=4)
+test_loader = torch.utils.data.DataLoader(data_test, batch_size=batch_size,
                                           shuffle=False, pin_memory=True,
                                           drop_last=False, num_workers=4)
 
@@ -253,7 +260,22 @@ for it in range(start_iter, max_iter):
             torch.save(warmup_scheduler.state_dict(),
                        os.path.join(cp_dir, 'warmup_scheduler.pt'))
 
-        # Evaluate model and save plots
+        # Evaluate model on validation dataset
+        model.eval()
+        log_p_sum = 0
+        for x in iter(validate_loader):
+            x = x.to(device)
+            log_p = model.log_prob(x)
+            log_p_sum += torch.sum(log_p.detach())
+        model.train()
+        log_p_avg = log_p_sum / len(data_validate)
+
+        # Save log_p
+        log_p_validate_hist = np.concatenate([log_p_validate_hist, np.array([[it + 1, log_p_avg.item()]])])
+        np.savetxt(os.path.join(log_dir, 'log_p_validate.csv'), log_p_validate_hist,
+                   delimiter=',', header='it,log_p', comments='')
+
+        # Evaluate model on test dataset
         model.eval()
         log_p_sum = 0
         for x in iter(test_loader):
@@ -261,11 +283,11 @@ for it in range(start_iter, max_iter):
             log_p = model.log_prob(x)
             log_p_sum += torch.sum(log_p.detach())
         model.train()
-        log_p_avg = log_p_sum / len(test_data)
+        log_p_avg = log_p_sum / len(data_test)
 
         # Save log_p
-        log_p_hist = np.concatenate([log_p_hist, np.array([[it + 1, log_p_avg.item()]])])
-        np.savetxt(os.path.join(log_dir, 'log_p_test.csv'), log_p_hist,
+        log_p_test_hist = np.concatenate([log_p_test_hist, np.array([[it + 1, log_p_avg.item()]])])
+        np.savetxt(os.path.join(log_dir, 'log_p_test.csv'), log_p_test_hist,
                    delimiter=',', header='it,log_p', comments='')
 
         # Evaluate ema model
@@ -281,16 +303,30 @@ for it in range(start_iter, max_iter):
                     else config['training']['Z_num_batches']
                 ema_model.module.q0.estimate_Z(num_s, num_b)
 
+            # Evaluate model on validation dataset
+            log_p_sum = 0
+            for x in iter(validate_loader):
+                x = x.to(device)
+                log_p = model.log_prob(x)
+                log_p_sum += torch.sum(log_p.detach())
+            log_p_avg = log_p_sum / len(data_validate)
+
+            # Save log_p
+            ema_log_p_validate_hist = np.concatenate([ema_log_p_validate_hist, np.array([[it + 1, log_p_avg.item()]])])
+            np.savetxt(os.path.join(log_dir, 'ema_log_p_validate.csv'), ema_log_p_validate_hist,
+                       delimiter=',', header='it,log_p', comments='')
+
+            # Evaluate model on test dataset
             log_p_sum = 0
             for x in iter(test_loader):
                 x = x.to(device)
                 log_p = model.log_prob(x)
                 log_p_sum += torch.sum(log_p.detach())
-            log_p_avg = log_p_sum / len(test_data)
+            log_p_avg = log_p_sum / len(data_test)
 
             # Save log_p
-            ema_log_p_hist = np.concatenate([ema_log_p_hist, np.array([[it + 1, log_p_avg.item()]])])
-            np.savetxt(os.path.join(log_dir, 'ema_log_p_test.csv'), ema_log_p_hist,
+            ema_log_p_test_hist = np.concatenate([ema_log_p_test_hist, np.array([[it + 1, log_p_avg.item()]])])
+            np.savetxt(os.path.join(log_dir, 'ema_log_p_test.csv'), ema_log_p_test_hist,
                        delimiter=',', header='it,log_p', comments='')
 
             # Save model

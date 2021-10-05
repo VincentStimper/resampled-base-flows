@@ -34,19 +34,28 @@ def load_miniboone(path):
         i += 1
     data = data[:, [i for i in range(data.shape[1]) if not i in features_to_remove]]
 
-    # Train test split
+    # Train, validate, test split
     N_test = int(0.1 * data.shape[0])
     data_test = data[-N_test:]
     data = data[0:-N_test]
-    data_train = data[0:-N_test]
+    N_validate = int(0.1 * data.shape[0])
+    data_validate = data[-N_validate:]
+    data_train = data[0:-N_validate]
 
     # Normalization
-    mu = data_train.mean(axis=0)
-    s = data_train.std(axis=0)
+    data = np.vstack((data_train, data_validate))
+    mu = data.mean(axis=0)
+    s = data.std(axis=0)
     data_train = (data_train - mu) / s
+    data_validate = (data_validate - mu) / s
     data_test = (data_test - mu) / s
 
-    return torch.tensor(data_train), torch.tensor(data_test)
+    # To tensor
+    data_train = torch.tensor(data_train)
+    data_validate = torch.tensor(data_validate)
+    data_test = torch.tensor(data_test)
+
+    return data_train, data_validate, data_test
 
 
 def load_hepmass(path):
@@ -91,7 +100,18 @@ def load_hepmass(path):
     data_train = data_train[:, ind]
     data_test = data_test[:, ind]
 
-    return torch.tensor(data_train), torch.tensor(data_test)
+    # Get validation dataset
+    N = data_train.shape[0]
+    N_validate = int(N * 0.1)
+    data_validate = data_train[-N_validate:]
+    data_train = data_train[0:-N_validate]
+
+    # To tensor
+    data_train = torch.tensor(data_train)
+    data_validate = torch.tensor(data_validate)
+    data_test = torch.tensor(data_test)
+
+    return data_train, data_validate, data_test
 
 
 # Dictonary of UCI data loaders
