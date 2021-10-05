@@ -399,9 +399,10 @@ class BoltzmannGenerator(NormalizingFlow):
                 loc_scale = config['model']['base']['params']['loc_scale']
             else:
                 loc_scale = 1.
-            q0 = nf.distributions.GaussianMixture(config['model']['base']['params']['n_modes'], latent_size,
-                                                  loc=loc_scale * np.random.rand(n_modes, latent_size),
-                                                  trainable=config['model']['base']['learn_mean_var'])
+            loc = loc_scale * np.random.rand(n_modes, latent_size)
+            trainable = config['model']['base']['learn_mean_var']
+            q0 = nf.distributions.GaussianMixture(n_modes, latent_size, loc=loc,
+                                                  trainable=trainable)
         else:
             raise NotImplementedError('The base distribution ' + config['model']['base']['type']
                                       + ' is not implemented.')
