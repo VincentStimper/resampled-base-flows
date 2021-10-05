@@ -1,4 +1,5 @@
 import os
+from collections import Counter
 
 import numpy as np
 import pandas as pd
@@ -25,7 +26,9 @@ def load_miniboone(path):
     i = 0
     features_to_remove = []
     for feature in data.T:
-        max_count = np.max(np.unique(feature, return_counts=True)[1])
+        #max_count = np.max(np.unique(feature, return_counts=True)[1])
+        c = Counter(feature)
+        max_count = np.array([v for k, v in sorted(c.items())])[0]
         if max_count > 5:
             features_to_remove.append(i)
         i += 1
@@ -77,13 +80,14 @@ def load_hepmass(path):
     i = 0
     features_to_remove = []
     for feature in data_train.T:
-        max_count = np.max(np.unique(feature, return_counts=True)[1])
+        # max_count = np.max(np.unique(feature, return_counts=True)[1])
+        c = Counter(feature)
+        max_count = np.array([v for k, v in sorted(c.items())])[0]
         if max_count > 5:
             features_to_remove.append(i)
         i += 1
     ind = np.array([i for i in range(data_train.shape[1])
                     if i not in features_to_remove])
-    print(ind)
     data_train = data_train[:, ind]
     data_test = data_test[:, ind]
 
