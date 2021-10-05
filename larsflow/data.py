@@ -81,10 +81,11 @@ def load_hepmass(path):
         if max_count > 5:
             features_to_remove.append(i)
         i += 1
-    data_train = data_train[:, np.array(
-        [i for i in range(data_train.shape[1]) if i not in features_to_remove])]
-    data_test = data_test[:, np.array(
-        [i for i in range(data_test.shape[1]) if i not in features_to_remove])]
+    ind = np.array([i for i in range(data_train.shape[1])
+                    if i not in features_to_remove])
+    print(ind)
+    data_train = data_train[:, ind]
+    data_test = data_test[:, ind]
 
     return torch.tensor(data_train), torch.tensor(data_test)
 
