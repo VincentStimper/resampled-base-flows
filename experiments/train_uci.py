@@ -191,6 +191,7 @@ test_loader = torch.utils.data.DataLoader(data_test, batch_size=batch_size,
 
 # Start training
 start_time = time()
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, max_iter)
 
 for it in range(start_iter, max_iter):
     # Get batch from dataset
@@ -206,7 +207,9 @@ for it in range(start_iter, max_iter):
     # Make step
     if not torch.isnan(loss) and not torch.isinf(loss):
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.flow.parameter(), 5.)
         optimizer.step()
+        scheduler.step()
 
     # Update Lipschitz constant if flows are residual
     if model.flow_type == 'residual':
