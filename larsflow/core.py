@@ -497,8 +497,15 @@ class UCIFlow(NormalizingFlow):
             q0 = nf.distributions.DiagGaussian(latent_size,
                                 trainable=config['model']['base']['learn_mean_var'])
         elif config['model']['base']['type'] == 'gaussian_mixture':
-            q0 = nf.distributions.GaussianMixture(config['model']['base']['params']['n_modes'], latent_size,
-                                                  trainable=config['model']['base']['learn_mean_var'])
+            n_modes = config['model']['base']['params']['n_modes']
+            if 'loc_scale' in config['model']['base']['params']:
+                loc_scale = config['model']['base']['params']['loc_scale']
+            else:
+                loc_scale = 1.
+            loc = loc_scale * np.random.rand(n_modes, latent_size)
+            trainable = config['model']['base']['learn_mean_var']
+            q0 = nf.distributions.GaussianMixture(n_modes, latent_size, loc=loc,
+                                                  trainable=trainable)
         else:
             raise NotImplementedError('The base distribution ' + config['model']['base']['type']
                                       + ' is not implemented.')
