@@ -207,7 +207,7 @@ for it in range(start_iter, max_iter):
     # Make step
     if not torch.isnan(loss) and not torch.isinf(loss):
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.flow.parameter(), 5.)
+        torch.nn.utils.clip_grad_norm_(model.flows.parameter(), 5.)
         optimizer.step()
         scheduler.step()
 
