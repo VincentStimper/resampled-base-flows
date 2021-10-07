@@ -141,33 +141,33 @@ def load_power(path):
 
 def load_gas(path):
     # Load data
-    data = pd.read_pickle(path)
-    data.drop("Meth", axis=1, inplace=True)
-    data.drop("Eth", axis=1, inplace=True)
-    data.drop("Time", axis=1, inplace=True)
+    with pd.read_pickle(path) as data:
+        data.drop("Meth", axis=1, inplace=True)
+        data.drop("Eth", axis=1, inplace=True)
+        data.drop("Time", axis=1, inplace=True)
 
-    # Remove columns with to high correlation
-    def get_correlation_numbers(data):
-        C = data.corr()
-        A = C > 0.98
-        B = A.sum(axis=1)
-        return B
+        # Remove columns with to high correlation
+        def get_correlation_numbers(data):
+            C = data.corr()
+            A = C > 0.98
+            B = A.sum(axis=1)
+            return B
 
-    B = get_correlation_numbers(data)
-    while np.any(B > 1):
-        col_to_remove = np.where(B > 1)[0][0]
-        col_name = data.columns[col_to_remove]
-        data.drop(col_name, axis=1, inplace=True)
         B = get_correlation_numbers(data)
+        while np.any(B > 1):
+            col_to_remove = np.where(B > 1)[0][0]
+            col_name = data.columns[col_to_remove]
+            data.drop(col_name, axis=1, inplace=True)
+            B = get_correlation_numbers(data)
 
-    # Normalize data
-    data = (data - data.mean()) / data.std()
+        # Normalize data
+        data = (data - data.mean()) / data.std()
+        data_ = data.values
 
     # Train, validation, test split
-    data = data.values
-    N_test = int(0.1 * data.shape[0])
-    data_test = data[-N_test:]
-    data_train = data[0:-N_test]
+    N_test = int(0.1 * data_.shape[0])
+    data_test = data_[-N_test:]
+    data_train = data_[0:-N_test]
     N_validate = int(0.1 * data_train.shape[0])
     data_validate = data_train[-N_validate:]
     data_train = data_train[0:-N_validate]

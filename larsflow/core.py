@@ -463,7 +463,7 @@ class UCIFlow(NormalizingFlow):
             else config['model']['flow_type']
         hidden_units = config['model']['hidden_units']
         hidden_layers = config['model']['hidden_layers']
-        dropout = None if not 'dropout' in config['model'] \
+        dropout = None if 'dropout' not in config['model'] \
             else config['model']['dropout']
         # Get parameters specific to flow type
         if self.flow_type == 'rnvp':
@@ -485,7 +485,7 @@ class UCIFlow(NormalizingFlow):
             eps = config['model']['base']['params']['eps']
             a_hl = config['model']['base']['params']['a_hidden_layers']
             a_hu = config['model']['base']['params']['a_hidden_units']
-            a_drop = None if not 'dropout' in config['model']['base']['params'] \
+            a_drop = None if 'dropout' not in config['model']['base']['params'] \
                 else config['model']['base']['params']['dropout']
             init_zeros_a = True if not 'init_zeros' in config['model']['base']['params'] \
                 else config['model']['base']['params']['init_zeros']
