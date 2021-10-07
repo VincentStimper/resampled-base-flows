@@ -165,7 +165,7 @@ def load_gas(path):
 
     # Train, validation, test split
     data_ = data.values
-    N_test = int(0.1 * data.shape[0])
+    N_test = int(0.1 * data_.shape[0])
     data_test = data_[-N_test:]
     data_train = data_[0:-N_test]
     N_validate = int(0.1 * data_train.shape[0])
