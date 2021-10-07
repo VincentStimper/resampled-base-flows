@@ -263,12 +263,18 @@ for it in range(start_iter, max_iter):
         # Evaluate model on validation dataset
         model.eval()
         log_p_sum = 0
+        num_nan = 0
         for x in iter(validate_loader):
             x = x.to(device)
             log_p = model.log_prob(x)
-            log_p_sum += torch.sum(log_p.detach())
-        model.train()
-        log_p_avg = log_p_sum / len(data_validate)
+            log_p_np = log_p.cpu().numpy()
+            isfinite = np.isfinite(log_p_np)
+            num_nan += np.sum(~isfinite)
+            log_p_sum += np.sum(log_p_np[isfinite])
+        if num_nan < len(data_validate):
+            log_p_avg = log_p_sum / (len(data_validate) - num_nan)
+        else:
+            log_p_avg = np.nan
 
         # Save log_p
         log_p_validate_hist = np.concatenate([log_p_validate_hist, np.array([[it + 1, log_p_avg.item()]])])
@@ -278,12 +284,18 @@ for it in range(start_iter, max_iter):
         # Evaluate model on test dataset
         model.eval()
         log_p_sum = 0
+        num_nan = 0
         for x in iter(test_loader):
             x = x.to(device)
             log_p = model.log_prob(x)
-            log_p_sum += torch.sum(log_p.detach())
-        model.train()
-        log_p_avg = log_p_sum / len(data_test)
+            log_p_np = log_p.cpu().numpy()
+            isfinite = np.isfinite(log_p_np)
+            num_nan += np.sum(~isfinite)
+            log_p_sum += np.sum(log_p_np[isfinite])
+        if num_nan < len(data_test):
+            log_p_avg = log_p_sum / (len(data_test) - num_nan)
+        else:
+            log_p_avg = np.nan
 
         # Save log_p
         log_p_test_hist = np.concatenate([log_p_test_hist, np.array([[it + 1, log_p_avg.item()]])])
@@ -305,11 +317,18 @@ for it in range(start_iter, max_iter):
 
             # Evaluate model on validation dataset
             log_p_sum = 0
+            num_nan = 0
             for x in iter(validate_loader):
                 x = x.to(device)
                 log_p = model.log_prob(x)
-                log_p_sum += torch.sum(log_p.detach())
-            log_p_avg = log_p_sum / len(data_validate)
+                log_p_np = log_p.cpu().numpy()
+                isfinite = np.isfinite(log_p_np)
+                num_nan += np.sum(~isfinite)
+                log_p_sum += np.sum(log_p_np[isfinite])
+            if num_nan < len(data_validate):
+                log_p_avg = log_p_sum / (len(data_validate) - num_nan)
+            else:
+                log_p_avg = np.nan
 
             # Save log_p
             ema_log_p_validate_hist = np.concatenate([ema_log_p_validate_hist, np.array([[it + 1, log_p_avg.item()]])])
@@ -318,11 +337,18 @@ for it in range(start_iter, max_iter):
 
             # Evaluate model on test dataset
             log_p_sum = 0
+            num_nan = 0
             for x in iter(test_loader):
                 x = x.to(device)
                 log_p = model.log_prob(x)
-                log_p_sum += torch.sum(log_p.detach())
-            log_p_avg = log_p_sum / len(data_test)
+                log_p_np = log_p.cpu().numpy()
+                isfinite = np.isfinite(log_p_np)
+                num_nan += np.sum(~isfinite)
+                log_p_sum += np.sum(log_p_np[isfinite])
+            if num_nan < len(data_test):
+                log_p_avg = log_p_sum / (len(data_test) - num_nan)
+            else:
+                log_p_avg = np.nan
 
             # Save log_p
             ema_log_p_test_hist = np.concatenate([ema_log_p_test_hist, np.array([[it + 1, log_p_avg.item()]])])
