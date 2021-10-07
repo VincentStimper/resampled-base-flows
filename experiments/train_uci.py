@@ -265,9 +265,10 @@ for it in range(start_iter, max_iter):
         log_p_sum = 0
         num_nan = 0
         for x in iter(validate_loader):
-            x = x.to(device)
-            log_p = model.log_prob(x)
-            log_p_np = log_p.cpu().numpy()
+            with torch.no_grad():
+                x = x.to(device)
+                log_p = model.log_prob(x)
+                log_p_np = log_p.cpu().detach().numpy()
             isfinite = np.isfinite(log_p_np)
             num_nan += np.sum(~isfinite)
             log_p_sum += np.sum(log_p_np[isfinite])
@@ -286,9 +287,10 @@ for it in range(start_iter, max_iter):
         log_p_sum = 0
         num_nan = 0
         for x in iter(test_loader):
-            x = x.to(device)
-            log_p = model.log_prob(x)
-            log_p_np = log_p.cpu().numpy()
+            with torch.no_grad():
+                x = x.to(device)
+                log_p = model.log_prob(x)
+                log_p_np = log_p.cpu().detach().numpy()
             isfinite = np.isfinite(log_p_np)
             num_nan += np.sum(~isfinite)
             log_p_sum += np.sum(log_p_np[isfinite])
@@ -319,9 +321,10 @@ for it in range(start_iter, max_iter):
             log_p_sum = 0
             num_nan = 0
             for x in iter(validate_loader):
-                x = x.to(device)
-                log_p = model.log_prob(x)
-                log_p_np = log_p.cpu().numpy()
+                with torch.no_grad():
+                    x = x.to(device)
+                    log_p = model.log_prob(x)
+                    log_p_np = log_p.cpu().detach().numpy()
                 isfinite = np.isfinite(log_p_np)
                 num_nan += np.sum(~isfinite)
                 log_p_sum += np.sum(log_p_np[isfinite])
@@ -339,9 +342,10 @@ for it in range(start_iter, max_iter):
             log_p_sum = 0
             num_nan = 0
             for x in iter(test_loader):
-                x = x.to(device)
-                log_p = model.log_prob(x)
-                log_p_np = log_p.cpu().numpy()
+                with torch.no_grad():
+                    x = x.to(device)
+                    log_p = model.log_prob(x)
+                    log_p_np = log_p.cpu().detach().numpy()
                 isfinite = np.isfinite(log_p_np)
                 num_nan += np.sum(~isfinite)
                 log_p_sum += np.sum(log_p_np[isfinite])
