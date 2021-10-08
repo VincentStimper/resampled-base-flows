@@ -164,7 +164,7 @@ def load_gas(path):
     data = (data - data.mean()) / data.std()
 
     # Train, validation, test split
-    data_ = data.values
+    data_ = data.to_numpy(copy=True)
     N_test = int(0.1 * data_.shape[0])
     data_test = data_[-N_test:]
     data_train = data_[0:-N_test]
