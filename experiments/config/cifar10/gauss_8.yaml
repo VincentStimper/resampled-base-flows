@@ -3,7 +3,7 @@
 
 dataset:
   name: cifar10           # Dataset to train on, can be cifar10
-  path: /cobra/u/vstimper/projects/resampled-base-flows/datasets
+  path: datasets
   augment: True           # Flag if data augmentation shall be used
   num_worker: 8           # Number of workers for data loading
 
@@ -34,5 +34,5 @@ training:
   cp_iter: 5000           # Number of iterations at which to save a checkpoint and samples
   num_samples: 64         # Number of samples to generate and save per checkpoint
   log_iter: 1000          # Number of iterations at which to save loss and bits per dim to file
-  save_root: /cobra/u/vstimper/projects/resampled-base-flows/experiments/glow/cifar10/seeded/g_8_1
+  save_root: experiments/glow/cifar10/seeded/g_8_1
   seed: 1                 # Seed for training run

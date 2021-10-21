@@ -3,9 +3,9 @@
 
 
 data_path:
-  transform: /cobra/u/vstimper/projects/resampled-base-flows/datasets/boltzmann-generators/aldp_train.h5
-  train: /cobra/u/vstimper/projects/resampled-base-flows/datasets/boltzmann-generators/aldp_train_transformed.pt
-  test: /cobra/u/vstimper/projects/resampled-base-flows/datasets/boltzmann-generators/aldp_test_transformed.pt
+  transform: datasets/boltzmann-generators/aldp_train.h5
+  train: datasets/boltzmann-generators/aldp_train_transformed.pt
+  test: datasets/boltzmann-generators/aldp_test_transformed.pt
 
 
 system:                             # Properties of molecular system
@@ -57,4 +57,4 @@ training:                           # Properties of the training procedure
   log_iter: 10000                   # Int, number of iterations after which loss is saved
   checkpoint_iter: 50000            # Int, number of iterations after which checkpoint is saved
   seed: 0                           # Int, seed to be used for the random number generator
-  save_root: /cobra/u/vstimper/projects/resampled-base-flows/experiments/bg/fkld/rnvp/gaussian_mixture/00
+  save_root: experiments/bg/fkld/rnvp/gaussian_mixture/00

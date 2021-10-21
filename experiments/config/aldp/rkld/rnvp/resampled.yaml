@@ -3,9 +3,9 @@
 
 
 data_path:
-  transform: /draco/u/vstimper/projects/resampled-base-flows/datasets/boltzmann-generators/aldp_train.h5
-  train: /draco/u/vstimper/projects/resampled-base-flows/datasets/boltzmann-generators/aldp_train_transformed.pt
-  test: /draco/u/vstimper/projects/resampled-base-flows/datasets/boltzmann-generators/aldp_test_transformed.pt
+  transform: datasets/boltzmann-generators/aldp_train.h5
+  train: datasets/boltzmann-generators/aldp_train_transformed.pt
+  test: datasets/boltzmann-generators/aldp_test_transformed.pt
 
 
 system:                             # Properties of molecular system
@@ -59,4 +59,4 @@ training:                           # Properties of the training procedure
   log_iter: 1000                    # Int, number of iterations after which loss is saved
   checkpoint_iter: 5000             # Int, number of iterations after which checkpoint is saved
   seed: 0                           # Int, seed to be used for the random number generator
-  save_root: /draco/u/vstimper/projects/resampled-base-flows/experiments/bg/rnvp/rkld/resampled_01
+  save_root: experiments/bg/rnvp/rkld/resampled_01
