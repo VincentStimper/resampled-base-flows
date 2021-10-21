@@ -1,10 +1,10 @@
-# Config file specifying the setup of a flow for the power dataset
+# Config file specifying the setup of a flow for the gas dataset
 # based on a Real NVP flow model
 
 
 dataset:
-  name: power
-  path: /raven/u/vstimper/projects/resampled-base-flows/datasets/uci/power/data.npy
+  name: gas
+  path: /raven/u/vstimper/projects/resampled-base-flows/datasets/uci/gas/ethylene_CO.pickle
 
 
 model:                              # Properties of the model
@@ -16,7 +16,7 @@ model:                              # Properties of the model
       n_modes: 10
       loc_scale: 0.1
   flow_type: rnvp                   # String, flow type, can be rnvp or residual
-  latent_size: 6                    # Int, number of features in the latent space
+  latent_size: 8                    # Int, number of features in the latent space
   blocks: 16                        # Int, number of Real NVP blocks, consisting of an ActNorm layer
                                     # if specified, a permutation, and a affine coupling layer
   actnorm: True                     # Bool, flag whether to include an ActNorm layers
@@ -25,6 +25,7 @@ model:                              # Properties of the model
   scale_map: sigmoid
   hidden_layers: 2                  # Int, number of hidden layers of the NN in the coupling layers
   hidden_units: 128                 # Int, number of hidden units of the NN in the coupling layers
+  dropout: 0.1
   init_zeros: True                  # Bool, flag whether to initialize last layer of NNs with zeros
 
 
@@ -41,5 +42,5 @@ training:                           # Properties of the training procedure
   log_iter: 1000                    # Int, number of iterations after which loss is saved
   checkpoint_iter: 10000            # Int, number of iterations after which checkpoint is saved
   seed: 0                           # Int, seed to be used for the random number generator
-  save_root: /raven/u/vstimper/projects/resampled-base-flows/experiments/uci/power/rnvp/gaussian_mixture/00
+  save_root: /raven/u/vstimper/projects/resampled-base-flows/experiments/uci/gas/rnvp/gaussian_mixture/00
 
