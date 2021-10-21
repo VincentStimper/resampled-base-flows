@@ -4,7 +4,7 @@
 
 dataset:
   name: gas
-  path: /raven/u/vstimper/projects/resampled-base-flows/datasets/uci/gas/ethylene_CO.pickle
+  path: datasets/uci/gas/ethylene_CO.pickle
 
 
 model:                              # Properties of the model
@@ -45,5 +45,5 @@ training:                           # Properties of the training procedure
   log_iter: 1000                    # Int, number of iterations after which loss is saved
   checkpoint_iter: 10000            # Int, number of iterations after which checkpoint is saved
   seed: 0                           # Int, seed to be used for the random number generator
-  save_root: /raven/u/vstimper/projects/resampled-base-flows/experiments/uci/gas/rnvp/resampled/00
+  save_root: experiments/uci/gas/rnvp/resampled/00
 
