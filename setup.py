@@ -14,13 +14,12 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 with open(path.join(here, 'requirements.txt'), encoding='utf-8') as f:
     all_reqs = f.read().split('\n')
 
-install_requires = [x.strip() for x in all_reqs if 'git+' not in x]
-dependency_links = [x.strip().replace('git+', '') for x in all_reqs if x.startswith('git+')]
+install_requires = [x.strip() for x in all_reqs]
 
 setup(
     name='larsflow',
     version=__version__,
-    description='Pytorch implementation of normalizing flows',
+    description='Pytorch implementation of resampled base distributions for normalizing flows',
     long_description=long_description,
     url='https://github.com/VincentStimper/resampled-base-flows',
     download_url='https://github.com/VincentStimper/resampled-base-flows/tarball/' + __version__,
@@ -35,6 +34,5 @@ setup(
     include_package_data=True,
     author=['Vincent Stimper'],
     install_requires=install_requires,
-    dependency_links=dependency_links,
     author_email=''
 )
