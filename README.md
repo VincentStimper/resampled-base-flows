@@ -8,7 +8,7 @@ but many of them sacrifice invertibility and, thereby, tractability of the
 log-likelihood as well as other desirable properties. To address these limitations, 
 we introduce a base distribution for normalizing flows based on learned rejection 
 sampling in our article
-[Resampling Base Distributions of Normalizing Flows](https://arxiv.org/),
+[Resampling Base Distributions of Normalizing Flows](https://arxiv.org/abs/2110.15828),
 allowing the resulting normalizing flow to model complex topologies without giving
 up bijectivity. In this repository, we implemented this class of base distributions
 and provide the script for various experiments comparing them to other commonly used
