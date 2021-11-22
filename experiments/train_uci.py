@@ -283,7 +283,6 @@ for it in range(start_iter, max_iter):
                    delimiter=',', header='it,log_p', comments='')
 
         # Evaluate model on test dataset
-        model.eval()
         log_p_sum = 0
         num_nan = 0
         for x in iter(test_loader):
@@ -303,6 +302,8 @@ for it in range(start_iter, max_iter):
         log_p_test_hist = np.concatenate([log_p_test_hist, np.array([[it + 1, log_p_avg.item()]])])
         np.savetxt(os.path.join(log_dir, 'log_p_test.csv'), log_p_test_hist,
                    delimiter=',', header='it,log_p', comments='')
+
+        model.train()
 
         # Evaluate ema model
         if ema:
