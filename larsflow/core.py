@@ -481,7 +481,8 @@ class UCIFlow(NormalizingFlow):
         else:
             raise NotImplementedError('The flow type ' + self.flow_type
                                       + ' is not yet implemented.')
-        init_zeros = config['model']['init_zeros']
+        init_zeros = True if not 'init_zeros' in config['model'] \
+            else config['model']['init_zeros']
 
         # Set up base distribution
         latent_size = config['model']['latent_size']
