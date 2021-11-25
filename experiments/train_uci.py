@@ -2,6 +2,7 @@
 import torch
 import numpy as np
 from torch.optim.swa_utils import AveragedModel
+from torch.nn.utils import clip_grad_norm_
 
 import larsflow as lf
 import normflow as nf
@@ -103,8 +104,14 @@ lr_warmup = 'warmup_iter' in config['training'] \
 if lr_warmup:
     warmup_scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer,
                                                          lambda s: min(1., s / config['training']['warmup_iter']))
-lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizer,
-                                                      gamma=config['training']['rate_decay'])
+cosine_annealing = False if not 'cosine_annealing' in config['training'] \
+    else config['training']['cosine_annealing']
+if cosine_annealing:
+    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=max_iter)
+    config['training']['decay_iter'] = 1
+else:
+    lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizer,
+                                                          gamma=config['training']['rate_decay'])
 
 # Polyak (EMA) averaging
 ema = True if 'ema' in config['training'] and config['training']['ema'] is not None \
@@ -189,6 +196,10 @@ test_loader = torch.utils.data.DataLoader(data_test, batch_size=batch_size,
                                           shuffle=False, pin_memory=True,
                                           drop_last=False, num_workers=4)
 
+# Gradient clipping
+max_grad_norm = None if not 'max_grad_norm' in config['training'] \
+    else config['training']['max_grad_norm']
+
 # Start training
 start_time = time()
 
@@ -206,6 +217,8 @@ for it in range(start_iter, max_iter):
     # Make step
     if not torch.isnan(loss) and not torch.isinf(loss):
         loss.backward()
+        if max_grad_norm is not None:
+            clip_grad_norm_(model.parameters(), max_grad_norm)
         optimizer.step()
 
     # Update Lipschitz constant if flows are residual

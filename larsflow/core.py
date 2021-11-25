@@ -473,6 +473,9 @@ class UCIFlow(NormalizingFlow):
         elif self.flow_type == 'residual':
             lipschitz_const = 0.9 if not 'lipschitz_const' in config['model'] \
                 else config['model']['lipschitz_const']
+        elif self.flow_type == 'nsf_ar':
+            num_bins = 8 if not 'num_bins' in config['model'] \
+                else config['model']['num_bins']
         else:
             raise NotImplementedError('The flow type ' + self.flow_type
                                       + ' is not yet implemented.')
@@ -526,12 +529,16 @@ class UCIFlow(NormalizingFlow):
                 net = nf.nets.LipschitzMLP([latent_size] + [hidden_units] * hidden_layers + [latent_size],
                                            init_zeros=init_zeros, lipschitz_const=lipschitz_const)
                 flows += [nf.flows.Residual(net, reduce_memory=True)]
+            elif self.flow_type == 'nsf_ar':
+                # Autoregressive Neural Spline Flow layer
+                flows += [nf.flows.AutoregressiveRationalQuadraticSpline(latent_size, hidden_layers,
+                                            hidden_units, num_bins=num_bins, dropout_probability=dropout)]
 
             # Permutation
-            if self.flow_type == 'rnvp':
+            if 'permutation' in config['model']:
                 if config['model']['permutation'] == 'affine':
                     flows += [nf.flows.InvertibleAffine(latent_size)]
-                else:
+                elif config['model']['permutation'] == 'permute':
                     flows += [nf.flows.Permute(latent_size, config['model']['permutation'])]
 
             # ActNorm
