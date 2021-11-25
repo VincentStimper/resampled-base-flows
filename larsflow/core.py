@@ -476,6 +476,8 @@ class UCIFlow(NormalizingFlow):
         elif self.flow_type == 'nsf_ar':
             num_bins = 8 if not 'num_bins' in config['model'] \
                 else config['model']['num_bins']
+            if dropout is None:
+                dropout = 0.
         else:
             raise NotImplementedError('The flow type ' + self.flow_type
                                       + ' is not yet implemented.')
