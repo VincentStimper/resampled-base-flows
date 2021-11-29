@@ -518,6 +518,8 @@ class UCIFlow(NormalizingFlow):
 
         # Set up flow layers
         flows = []
+        if config['model']['permutation'] == 'lu_permute':
+            flows = [nf.flows.LULinearPermute(latent_size)]
         for i in range(blocks):
             # Transformation layer
             if self.flow_type == 'rnvp':
@@ -543,6 +545,8 @@ class UCIFlow(NormalizingFlow):
                     flows += [nf.flows.InvertibleAffine(latent_size)]
                 elif config['model']['permutation'] == 'permute':
                     flows += [nf.flows.Permute(latent_size, config['model']['permutation'])]
+                elif config['model']['permutation'] == 'lu_permute':
+                    flows += [nf.flows.LULinearPermute(latent_size)]
 
             # ActNorm
             if config['model']['actnorm']:
