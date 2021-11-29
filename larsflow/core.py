@@ -544,7 +544,7 @@ class UCIFlow(NormalizingFlow):
                 if config['model']['permutation'] == 'affine':
                     flows += [nf.flows.InvertibleAffine(latent_size)]
                 elif config['model']['permutation'] == 'permute':
-                    flows += [nf.flows.Permute(latent_size, config['model']['permutation'])]
+                    flows += [nf.flows.Permute(latent_size)]
                 elif config['model']['permutation'] == 'lu_permute':
                     flows += [nf.flows.LULinearPermute(latent_size)]
 
