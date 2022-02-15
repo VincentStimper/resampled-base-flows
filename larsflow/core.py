@@ -434,6 +434,16 @@ class BoltzmannGenerator(NormalizingFlow):
             # ActNorm
             if config['model']['actnorm']:
                 flows += [nf.flows.ActNorm(latent_size)]
+
+            # SNF
+            if 'snf' in config['model']:
+                if (i + 1) % config['model']['snf']['every_n'] == 0:
+                    prop_scale = config['model']['snf']['proposal_std'] * np.ones(latent_size)
+                    steps = config['model']['snf']['steps']
+                    proposal = nf.distributions.DiagGaussianProposal((latent_size,), prop_scale)
+                    lam = (i + 1) / (blocks + 1)
+                    dist = nf.distributions.LinearInterpolation(p, q0, lam)
+                    flows += [nf.flows.MetropolisHastings(dist, proposal, steps)]
         # Coordinate transformation
         if add_transform:
             flows += [transform]

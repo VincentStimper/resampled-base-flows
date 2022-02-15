@@ -1,0 +1,62 @@
+# Config file specifying the setup of a Boltzmann Generator
+# based on a Real NVP flow model
+
+
+data_path:
+  transform: datasets/boltzmann-generators/aldp_train.h5
+  train: datasets/boltzmann-generators/aldp_train_transformed.pt
+  test: datasets/boltzmann-generators/aldp_test_transformed.pt
+
+
+system:                             # Properties of molecular system
+
+  name: AlanineDipeptideVacuum      # String, specifying the system from which states shall be generated
+  constraints: False                # Flag, true if constraints shall be used
+  temperature: 1000                 # Double, temperature of the system
+  energy_cut: 1.e+8                 # Double, energy level at which regularization shall be applied
+  energy_max: 1.e+20                # Double, maximum level at which energies will be clamped
+  platform: Reference               # String, specifies the platform used for force and energy calculations
+  precision: double                 # String, specifies the precision used for force and energy calculations
+  parallel_energy: True             # Bool, flag whether to process the batch in parallel to get energy
+  n_threads: 16                     # Int, number of threads to be used, number of cores if null
+
+
+model:                              # Properties of the model
+
+  base:                             # Base distribution
+    type: gauss                     # Type of the base dist, can be 'gaussian' or 'resampled'
+    learn_mean_var: True            # Flag, if true, mean and variance of the dist is learned
+    params: null
+  snf:
+    every_n: 4                      # Int, number of layers after which to apply SNF layer
+    proposal_sdt: 0.03              # Float, standard deviation of the proposal distribution
+    steps: 20                       # Int, number of MCMC steps to take
+  flow_type: rnvp                   # String, flow type, can be rnvp or residual
+  transform: False                  # Flag, if true, coordinate transform is added as last flow layer
+  latent_size: 60                   # Int, number of features in the latent space
+  blocks: 16                        # Int, number of Real NVP blocks, consisting of an ActNorm layer
+                                    # if specified, a permutation, and a affine coupling layer
+  actnorm: True                     # Bool, flag whether to include an ActNorm layers
+  permutation: affine               # String, can be swap, shuffle, or affine
+  coupling: affine                  # String, can be affine or additive
+  scale_map: sigmoid
+  hidden_layers: 2                  # Int, number of hidden layers of the NN in the coupling layers
+  hidden_units: 64                  # Int, number of hidden units of the NN in the coupling layers
+  init_zeros: True                  # Bool, flag whether to initialize last layer of NNs with zeros
+
+
+training:                           # Properties of the training procedure
+  max_iter: 500000                  # Int, maximum number of iteration
+  optimizer: adamax                 # String, name of the optimizer
+  warmup_iter: 100                  # Int, number of iterations of linearly warm up learning rate
+  batch_size: 512                   # Int, batch size used during training
+  learning_rate: 1.e-3              # Double, learning rate used during training
+  rate_decay: 0.1                   # Double, learning rate decay factor
+  decay_iter: 250000                # Int, number of iteration after which the learning rate should be
+                                    # decreased
+  ema: 0.99                         # EMA decay parameter
+  weight_decay: 1.e-5               # Double, regularization parameter
+  log_iter: 1000                    # Int, number of iterations after which loss is saved
+  checkpoint_iter: 5000             # Int, number of iterations after which checkpoint is saved
+  seed: 0                           # Int, seed to be used for the random number generator
+  save_root: experiments/bg/rnvp/fkld/gauss_01
