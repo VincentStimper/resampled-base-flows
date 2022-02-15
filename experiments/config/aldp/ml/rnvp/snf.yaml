@@ -29,7 +29,7 @@ model:                              # Properties of the model
     params: null
   snf:
     every_n: 4                      # Int, number of layers after which to apply SNF layer
-    proposal_sdt: 0.03              # Float, standard deviation of the proposal distribution
+    proposal_std: 0.03              # Float, standard deviation of the proposal distribution
     steps: 20                       # Int, number of MCMC steps to take
   flow_type: rnvp                   # String, flow type, can be rnvp or residual
   transform: False                  # Flag, if true, coordinate transform is added as last flow layer
