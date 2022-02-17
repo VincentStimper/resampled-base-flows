@@ -78,6 +78,7 @@ for dir in [cp_dir, log_dir]:
 
 # Init logs
 loss_hist = np.zeros((0, 2))
+z_hist = np.zeros((0, 2))
 log_p_test_hist = np.zeros((0, 2))
 log_p_validate_hist = np.zeros((0, 2))
 
@@ -148,8 +149,8 @@ if args.resume:
         if os.path.exists(warmup_scheduler_path):
             warmup_scheduler.load_state_dict(torch.load(warmup_scheduler_path))
         # Load logs
-        log_labels = ['loss', 'log_p_test', 'log_p_validate']
-        log_hists = [loss_hist, log_p_test_hist, log_p_validate_hist]
+        log_labels = ['loss', 'log_p_test', 'log_p_validate', 'z']
+        log_hists = [loss_hist, log_p_test_hist, log_p_validate_hist, z_hist]
         for log_label, log_hist in zip(log_labels, log_hists):
             log_path = os.path.join(log_dir, log_label + '.csv')
             if os.path.exists(log_path):
@@ -200,6 +201,12 @@ test_loader = torch.utils.data.DataLoader(data_test, batch_size=batch_size,
 max_grad_norm = None if not 'max_grad_norm' in config['training'] \
     else config['training']['max_grad_norm']
 
+# Regularize with Z
+if 'lam_Z' in config['training']:
+    lam_Z = config['training']['lam_Z']
+else:
+    lam_Z = None
+
 # Start training
 start_time = time()
 
@@ -213,6 +220,11 @@ for it in range(start_iter, max_iter):
     x = x.to(device, non_blocking=True)
 
     loss = model.forward_kld(x)
+
+    if lam_Z is not None:
+        eps_ = torch.randn_like(x)
+        Z_batch = torch.mean(model.q0.a(eps_))
+        loss = loss - lam_Z * Z_batch
 
     # Make step
     if not torch.isnan(loss) and not torch.isinf(loss):
@@ -275,6 +287,20 @@ for it in range(start_iter, max_iter):
 
         # Evaluate model on validation dataset
         model.eval()
+
+        # Estimate Z if needed
+        if 'resampled' in config['model']['base']['type']:
+            num_s = 2 ** 17 if not 'Z_num_samples' in config['training'] \
+                else config['training']['Z_num_samples']
+            num_b = 2 ** 10 if not 'Z_num_batches' in config['training'] \
+                else config['training']['Z_num_batches']
+            model.q0.estimate_Z(num_s, num_b)
+            z_hist = np.concatenate([z_hist, np.array([[it + 1, model.q0.Z.item()]])])
+            np.savetxt(os.path.join(log_dir, 'z.csv'), z_hist,
+                       delimiter=',', header='it,z', comments='')
+
+
+        # Evaluate log p
         log_p_sum = 0
         num_nan = 0
         for x in iter(validate_loader):
