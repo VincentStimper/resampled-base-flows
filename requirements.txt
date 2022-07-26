@@ -4,6 +4,6 @@ jupyterlab
 tqdm
 pyyaml
 pandas
-normflow @ git+https://github.com/VincentStimper/normalizing-flows.git
+normflows
 boltzgen @ git+https://github.com/VincentStimper/boltzmann-generators.git
 residual-flows @ git+https://github.com/VincentStimper/residual-flows.git

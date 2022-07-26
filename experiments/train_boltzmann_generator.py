@@ -5,7 +5,7 @@ from torch.optim.swa_utils import AveragedModel
 
 import larsflow as lf
 import boltzgen as bg
-import normflow as nf
+import normflows as nf
 
 import argparse
 import os

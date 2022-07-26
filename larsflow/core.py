@@ -1,6 +1,6 @@
 import torch
 import numpy as np
-import normflow as nf
+import normflows as nf
 
 from . import distributions
 from . import nets

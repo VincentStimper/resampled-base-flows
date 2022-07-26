@@ -5,7 +5,7 @@ from torch.optim.swa_utils import AveragedModel
 from torch.nn.utils import clip_grad_norm_
 
 import larsflow as lf
-import normflow as nf
+import normflows as nf
 
 import argparse
 import os

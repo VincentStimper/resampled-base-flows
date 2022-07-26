@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from . import utils
 
-import normflow as nf
+import normflows as nf
 
 class ConvNet2d(nn.Module):
     """

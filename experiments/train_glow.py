@@ -6,7 +6,7 @@ import torch_optimizer as optim
 from torch.optim.swa_utils import AveragedModel
 
 import numpy as np
-import normflow as nf
+import normflows as nf
 
 from matplotlib import pyplot as plt
 

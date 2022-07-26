@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-import normflow as nf
+import normflows as nf
 
 class ResampledGaussian(nf.distributions.BaseDistribution):
     """
