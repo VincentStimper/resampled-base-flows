@@ -1,5 +1,7 @@
 # Resampling Base Distributions of Normalizing Flows
 
+## Overview
+
 Normalizing flows are a popular class of models for approximating probability 
 distributions. However, their invertible nature limits their ability to model 
 target distributions with a complex topological structure, such as Boltzmann 
@@ -17,6 +19,11 @@ below.
 
 ![Normalizing flows with different base distributions](https://github.com/VincentStimper/resampled-base-flows/blob/master/images/2d_distributions.png "Normalizing flows with different base distributions")
 
+This packages builds upon the normalizing flow library 
+[`normflows`](https://github.com/VincentStimper/normalizing-flows). The Boltzmann 
+generator experiments are realized via the 
+[`boltzgen`](https://github.com/VincentStimper/boltzmann-generators) library.
+
 ## Methods of Installation
 
 The latest version of the package can be installed via pip
@@ -32,3 +39,23 @@ by following the instructions at the
 To run the Boltzmann generator experiments it is necessary to install OpenMM.
 Instructions on how to do this can be found 
 [here](http://docs.openmm.org/7.0.0/userguide/application.html#installing-openmm).
+
+## Citation
+
+If you use our code in your own research, please cite our paper:
+
+> Vincent Stimper, Bernhard Schölkopf, José Miguel Hernández-Lobato. Resampling Base 
+> Distributions of Normalizing Flows. In Proceedings of The 25th International Conference 
+> on Artificial Intelligence and Statistics, volume 151, pp. 4915–4936, 2022.
+
+**Bibtex**
+```
+@inproceedings{Stimper2022,
+  title = 	 {Resampling {B}ase {D}istributions of {N}ormalizing {F}lows},
+  author =       {Vincent Stimper and Bernhard Sch{\"o}lkopf and Jos{\'e} Miguel Hern{\'a}ndez-Lobato},
+  booktitle = 	 {Proceedings of The 25th International Conference on Artificial Intelligence and Statistics},
+  pages = 	 {4915--4936},
+  year = 	 {2022},
+  volume = 	 {151}
+}
+```
