@@ -114,6 +114,102 @@ class ResampledGaussian(nf.distributions.BaseDistribution):
                 self.Z = self.Z + Z_batch.detach() / num_batches
 
 
+class ResampledDistribution(nf.distributions.BaseDistribution):
+    """
+    Resampling of a general distribution
+    """
+    def __init__(self, dist, a, T, eps):
+        """
+        Constructor
+        :param dist: Distribution to be resampled
+        :param a: Function returning the acceptance probability
+        :param T: Maximum number of rejections
+        :param eps: Discount factor in exponential average of Z
+        """
+        super().__init__()
+        self.dist = dist
+        self.a = a
+        self.T = T
+        self.eps = eps
+        self.register_buffer("Z", torch.tensor(-1.))
+
+    def forward(self, num_samples=1):
+        t = 0
+        z = None
+        log_p_dist = None
+        s = 0
+        n = 0
+        Z_sum = 0
+        for i in range(self.T):
+            z_, log_prob_ = self.dist(num_samples)
+            if i == 0:
+                z = torch.zeros_like(z_)
+                log_p_dist = torch.zeros_like(log_prob_)
+            acc = self.a(z_)
+            if self.training or self.Z < 0.:
+                Z_sum = Z_sum + torch.sum(acc).detach()
+                n = n + num_samples
+            dec = torch.rand_like(acc) < acc
+            for j, dec_ in enumerate(dec[:, 0]):
+                if dec_ or t == self.T - 1:
+                    z[s, :] = z_[j, :]
+                    log_p_dist[s] = log_prob_[j]
+                    s = s + 1
+                    t = 0
+                else:
+                    t = t + 1
+                if s == num_samples:
+                    break
+            if s == num_samples:
+                break
+        acc = self.a(z)
+        if self.training or self.Z < 0.:
+            z_, _ = self.dist(num_samples)
+            Z_batch = torch.mean(self.a(z_))
+            Z_ = (Z_sum + Z_batch.detach() * num_samples) / (n + num_samples)
+            if self.Z < 0.:
+                self.Z = Z_
+            else:
+                self.Z = (1 - self.eps) * self.Z + self.eps * Z_
+            Z = Z_batch - Z_batch.detach() + self.Z
+        else:
+            Z = self.Z
+        alpha = (1 - Z) ** (self.T - 1)
+        log_p = torch.log((1 - alpha) * acc[:, 0] / Z + alpha) + log_p_dist
+        return z, log_p
+
+    def log_prob(self, z):
+        log_p_dist = self.dist.log_prob(z)
+        acc = self.a(z)
+        if self.training or self.Z < 0.:
+            z_, _ = self.dist(len(z))
+            Z_batch = torch.mean(self.a(z_))
+            if self.Z < 0.:
+                self.Z = Z_batch.detach()
+            else:
+                self.Z = (1 - self.eps) * self.Z + self.eps * Z_batch.detach()
+            Z = Z_batch - Z_batch.detach() + self.Z
+        else:
+            Z = self.Z
+        alpha = (1 - Z) ** (self.T - 1)
+        log_p = torch.log((1 - alpha) * acc[:, 0] / Z + alpha) + log_p_dist
+        return log_p
+
+    def estimate_Z(self, num_samples, num_batches=1):
+        """
+        Estimate Z via Monte Carlo sampling
+        :param num_samples: Number of samples to draw per batch
+        :param num_batches: Number of batches to draw
+        """
+        with torch.no_grad():
+            self.Z = self.Z * 0.
+            for i in range(num_batches):
+                z, _ = self.dist(num_samples)
+                acc_ = self.a(z)
+                Z_batch = torch.mean(acc_)
+                self.Z = self.Z + Z_batch.detach() / num_batches
+
+
 class FactorizedResampledGaussian(nf.distributions.BaseDistribution):
     """
     Resampled Gaussian factorized over second dimension,
