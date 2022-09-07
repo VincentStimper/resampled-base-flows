@@ -10,19 +10,21 @@ class ResampledGaussian(nf.distributions.BaseDistribution):
     resampled according to a acceptance probability determined by a neural network,
     see arXiv 1810.11428
     """
-    def __init__(self, d, a, T, eps, trainable=True):
+    def __init__(self, d, a, T, eps, trainable=True, bs_factor=1):
         """
         Constructor
         :param d: Dimension of Gaussian distribution
         :param a: Function returning the acceptance probability
         :param T: Maximum number of rejections
         :param eps: Discount factor in exponential average of Z
+        :param bs_factor: Factor to increase the batch size during sampling
         """
         super().__init__()
         self.d = d
         self.a = a
         self.T = T
         self.eps = eps
+        self.bs_factor = bs_factor
         self.register_buffer("Z", torch.tensor(-1.))
         if trainable:
             self.loc = nn.Parameter(torch.zeros(1, self.d))
@@ -37,12 +39,13 @@ class ResampledGaussian(nf.distributions.BaseDistribution):
         s = 0
         n = 0
         Z_sum = 0
-        for i in range(self.T):
-            eps_ = torch.randn((num_samples, self.d), dtype=self.loc.dtype, device=self.loc.device)
+        for i in range(self.T // self.bs_factor + 1):
+            eps_ = torch.randn((num_samples * self.bs_factor, self.d),
+                               dtype=self.loc.dtype, device=self.loc.device)
             acc = self.a(eps_)
             if self.training or self.Z < 0.:
                 Z_sum = Z_sum + torch.sum(acc).detach()
-                n = n + num_samples
+                n = n + num_samples * self.bs_factor
             dec = torch.rand_like(acc) < acc
             for j, dec_ in enumerate(dec[:, 0]):
                 if dec_ or t == self.T - 1:
