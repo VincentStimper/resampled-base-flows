@@ -121,19 +121,21 @@ class ResampledDistribution(nf.distributions.BaseDistribution):
     """
     Resampling of a general distribution
     """
-    def __init__(self, dist, a, T, eps):
+    def __init__(self, dist, a, T, eps, bs_factor=1):
         """
         Constructor
         :param dist: Distribution to be resampled
         :param a: Function returning the acceptance probability
         :param T: Maximum number of rejections
         :param eps: Discount factor in exponential average of Z
+        :param bs_factor: Factor to increase the batch size during sampling
         """
         super().__init__()
         self.dist = dist
         self.a = a
         self.T = T
         self.eps = eps
+        self.bs_factor = bs_factor
         self.register_buffer("Z", torch.tensor(-1.))
 
     def forward(self, num_samples=1):
@@ -143,19 +145,19 @@ class ResampledDistribution(nf.distributions.BaseDistribution):
         s = 0
         n = 0
         Z_sum = 0
-        for i in range(self.T):
-            z_, log_prob_ = self.dist(num_samples)
+        for i in range(self.T // self.bs_factor + 1):
+            z_, log_prob_ = self.dist(num_samples * self.bs_factor)
             if i == 0:
-                z = torch.zeros_like(z_)
-                log_p_dist = torch.zeros_like(log_prob_)
+                z = torch.zeros_like(z_[:num_samples])
+                log_p_dist = torch.zeros_like(log_prob_[:num_samples])
             acc = self.a(z_)
             if self.training or self.Z < 0.:
                 Z_sum = Z_sum + torch.sum(acc).detach()
-                n = n + num_samples
+                n = n + num_samples * self.bs_factor
             dec = torch.rand_like(acc) < acc
             for j, dec_ in enumerate(dec[:, 0]):
                 if dec_ or t == self.T - 1:
-                    z[s, :] = z_[j, :]
+                    z[s, ...] = z_[j, ...]
                     log_p_dist[s] = log_prob_[j]
                     s = s + 1
                     t = 0
